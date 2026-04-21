@@ -47,27 +47,45 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Usuario logueado en login/register → mandar al dashboard correspondiente
-  if (user && isAuthRoute) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+  let profile = null;
+  let isPlayerProfileComplete = false;
 
+  if (user) {
+    const [{ data: pData }, { count }] = await Promise.all([
+      supabase.from('profiles').select('role').eq('id', user.id).single(),
+      supabase.from('players').select('id', { count: 'exact', head: true }).eq('profile_id', user.id)
+    ]);
+    profile = pData;
+    isPlayerProfileComplete = count !== null && count > 0;
+  }
+
+  // Usuario logueado en login/register → mandar al dashboard correspondiente (o onboarding)
+  if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = profile?.role === 'admin' || profile?.role === 'staff' ? '/admin/dashboard' : '/dashboard';
+    if (profile?.role === 'admin' || profile?.role === 'staff') {
+      url.pathname = '/admin/dashboard';
+    } else {
+      url.pathname = isPlayerProfileComplete ? '/dashboard' : '/onboarding';
+    }
     return NextResponse.redirect(url);
+  }
+
+  // Lógica de onboarding para jugadores
+  if (user && profile?.role === 'player') {
+    if (!isPlayerProfileComplete && pathname !== '/onboarding' && isPlayerRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/onboarding';
+      return NextResponse.redirect(url);
+    }
+    if (isPlayerProfileComplete && pathname === '/onboarding') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
   }
 
   // Usuario player intentando entrar al panel admin → dashboard jugador
   if (user && isAdminRoute) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
     if (profile?.role !== 'admin' && profile?.role !== 'staff') {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';

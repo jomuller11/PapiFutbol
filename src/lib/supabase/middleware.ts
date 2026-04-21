@@ -29,17 +29,24 @@ export async function updateSession(request: NextRequest) {
   );
 
   // IMPORTANTE: no poner código entre createServerClient y getUser.
-  // Puede causar que la sesión no se refresque bien.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/register');
-  const isPlayerRoute = ['/dashboard', '/profile', '/matches', '/stats', '/notifications', '/onboarding', '/tournament-signup'].some(p => pathname.startsWith(p));
-  const isAdminRoute = pathname.startsWith('/admin');
 
-  // Usuario no logueado intentando acceder a ruta protegida → login
+  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/register');
+  const isAdminRoute = pathname.startsWith('/admin');
+  const isPlayerRoute =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/profile') ||
+    pathname.startsWith('/matches') ||
+    pathname.startsWith('/stats') ||
+    pathname.startsWith('/notifications') ||
+    pathname.startsWith('/onboarding') ||
+    pathname.startsWith('/tournament-signup');
+
+  // ── 1. Sin sesión → redirigir a login si intenta acceder a ruta protegida
   if (!user && (isPlayerRoute || isAdminRoute)) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
@@ -47,50 +54,60 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  let profile = null;
-  let isPlayerProfileComplete = false;
+  // ── 2. Con sesión → obtener el rol
+  let role: string | null = null;
+  let hasPlayerRecord = false;
 
   if (user) {
-    const [{ data: pData }, { count }] = await Promise.all([
-      supabase.from('profiles').select('role').eq('id', user.id).single(),
-      supabase.from('players').select('id', { count: 'exact', head: true }).eq('profile_id', user.id)
-    ]);
-    profile = pData;
-    isPlayerProfileComplete = count !== null && count > 0;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    role = profile?.role ?? null;
+
+    if (role === 'player') {
+      const { count } = await supabase
+        .from('players')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', user.id);
+      hasPlayerRecord = (count ?? 0) > 0;
+    }
   }
 
-  // Usuario logueado en login/register → mandar al dashboard correspondiente (o onboarding)
+  // ── 3. Con sesión en login/register → mandar al home correcto
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
-    if (profile?.role === 'admin' || profile?.role === 'staff') {
+    if (role === 'admin' || role === 'staff') {
       url.pathname = '/admin/dashboard';
+    } else if (hasPlayerRecord) {
+      url.pathname = '/dashboard';
     } else {
-      url.pathname = isPlayerProfileComplete ? '/dashboard' : '/onboarding';
+      url.pathname = '/onboarding';
     }
     return NextResponse.redirect(url);
   }
 
-  // Lógica de onboarding para jugadores
-  if (user && profile?.role === 'player') {
-    if (!isPlayerProfileComplete && pathname !== '/onboarding' && isPlayerRoute) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/onboarding';
-      return NextResponse.redirect(url);
-    }
-    if (isPlayerProfileComplete && pathname === '/onboarding') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
-    }
+  // ── 4. Player sin perfil → forzar onboarding (excepto si ya está en /onboarding)
+  if (user && role === 'player' && !hasPlayerRecord && isPlayerRoute && pathname !== '/onboarding') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/onboarding';
+    return NextResponse.redirect(url);
   }
 
-  // Usuario player intentando entrar al panel admin → dashboard jugador
-  if (user && isAdminRoute) {
-    if (profile?.role !== 'admin' && profile?.role !== 'staff') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
-    }
+  // ── 5. Admin/staff intentando entrar a rutas de player → mandarlos al panel
+  if (user && (role === 'admin' || role === 'staff') && isPlayerRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/admin/dashboard';
+    return NextResponse.redirect(url);
+  }
+
+  // ── 6. Player intentando entrar al panel admin → dashboard jugador
+  if (user && role === 'player' && isAdminRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;

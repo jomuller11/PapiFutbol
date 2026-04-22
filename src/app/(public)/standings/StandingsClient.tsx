@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { ArrowUp, Minus } from 'lucide-react';
 import Link from 'next/link';
 
 export function StandingsClient({ rows, groups }: { rows: any[], groups: any[] }) {
@@ -52,8 +52,9 @@ export function StandingsClient({ rows, groups }: { rows: any[], groups: any[] }
           const status = i < 4 ? 'clasifica' : i < 8 ? 'repechaje' : 'eliminado';
           
           return (
-            <div
+            <Link
               key={t.team_id}
+              href={`/team/${t.team_id}`}
               className="w-full bg-white border border-slate-200 flex items-center gap-3 overflow-hidden shadow-sm hover:border-blue-700 transition-colors"
             >
               {/* Ranking badge */}
@@ -95,7 +96,7 @@ export function StandingsClient({ rows, groups }: { rows: any[], groups: any[] }
               <div className={`w-1.5 self-stretch ${
                 status === 'clasifica' ? 'bg-emerald-500' : status === 'repechaje' ? 'bg-amber-500' : 'bg-slate-300'
               }`} style={{ minHeight: '68px' }} />
-            </div>
+            </Link>
           );
         })}
 

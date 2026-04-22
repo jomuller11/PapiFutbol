@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Zap } from 'lucide-react';
 import { MobileHeader } from '@/components/public/MobileHeader';
@@ -96,7 +97,7 @@ export default async function ScorersPage() {
               const initials = (s.player?.first_name?.[0] || '') + (s.player?.last_name?.[0] || '');
 
               return (
-                <div key={s.player?.id ?? pos} className="flex flex-col items-center">
+                <Link key={s.player?.id ?? pos} href={s.player?.id ? `/player/${s.player.id}` : '#'} className="flex flex-col items-center">
                   <div className="w-14 h-14 rounded-full bg-white mb-2 flex items-center justify-center font-display text-blue-900 text-lg shadow-sm">
                     {initials.slice(0, 2)}
                   </div>
@@ -108,7 +109,7 @@ export default async function ScorersPage() {
                     <div className="font-display text-2xl">{pos}°</div>
                     <div className="font-mono text-[10px] font-bold">{s.goals} GOLES</div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -120,7 +121,7 @@ export default async function ScorersPage() {
         {scorers.map((s, i) => {
           const name = s.player?.first_name ? `${s.player.first_name} ${s.player.last_name}` : 'Jugador';
           return (
-            <div key={s.player?.id ?? i} className="w-full bg-white border border-slate-200 p-3 flex items-center gap-3 hover:bg-slate-50 transition-colors shadow-sm">
+            <Link key={s.player?.id ?? i} href={s.player?.id ? `/player/${s.player.id}` : '#'} className="w-full bg-white border border-slate-200 p-3 flex items-center gap-3 hover:bg-slate-50 transition-colors shadow-sm">
               <div className={`w-9 h-9 font-display text-lg flex items-center justify-center flex-shrink-0 ${
                 i === 0 ? 'bg-orange-500 text-white shadow-sm' : i === 1 ? 'bg-slate-300 shadow-sm' : i === 2 ? 'bg-amber-700 text-white shadow-sm' : 'bg-slate-100 text-slate-600'
               }`}>
@@ -145,7 +146,7 @@ export default async function ScorersPage() {
                 <div className="font-display text-2xl text-blue-900 leading-none">{s.goals}</div>
                 <div className="font-mono text-[9px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">Goles</div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>

@@ -11,6 +11,7 @@ export function DesktopNav({ tournamentName, tournamentYear }: { tournamentName?
     { href: '/fixture', label: 'Fixture', icon: Calendar },
     { href: '/standings', label: 'Posiciones', icon: BarChart3 },
     { href: '/scorers', label: 'Goleadores', icon: Zap },
+    { href: '/goalkeepers', label: 'Valla', icon: Shield },
     { href: '/more', label: 'Más', icon: Menu },
   ];
 

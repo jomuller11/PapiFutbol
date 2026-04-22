@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800;9..144,900&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -41,7 +43,32 @@
   body {
     @apply bg-background text-foreground;
   }
+}
 
+@layer utilities {
+  .font-display { font-family: 'Anton', sans-serif; letter-spacing: 0.01em; }
+  .font-serif { font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.02em; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  
+  .stripe-bg {
+    background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 12px);
+  }
+  .stadium-grid {
+    background-image:
+      linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px),
+      linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .noise {
+    background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+  .hide-scroll::-webkit-scrollbar { display: none; }
+  .hide-scroll { scrollbar-width: none; }
+  .tilt { transform: rotate(-1.5deg); }
+}
+
+@layer components {
   /* ── Shared admin form utilities ─────────────────────────────────────── */
   .field-label {
     @apply block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide;
@@ -65,4 +92,3 @@
            disabled:opacity-60 transition-colors;
   }
 }
-

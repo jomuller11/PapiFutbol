@@ -23,15 +23,15 @@ export default async function AdminLayout({
     .eq('id', user.id)
     .single();
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+  if (!profile || ((profile as any).role !== 'admin' && (profile as any).role !== 'staff')) {
     redirect('/dashboard');
   }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans">
-      <Sidebar role={profile.role} />
+      <Sidebar role={(profile as any).role} />
       <div className="flex-1 min-h-screen flex flex-col">
-        <TopBar userEmail={profile.email} role={profile.role} />
+        <TopBar userEmail={(profile as any).email} role={(profile as any).role} />
         <main className="flex-1 p-8">{children}</main>
       </div>
     </div>

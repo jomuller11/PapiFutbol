@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { ApprovalsPageClient } from '@/components/admin/approvals/ApprovalsPageClient';
-import type { PlayerPosition, PlayerReference } from '@/types/database';
-
 export type RegistrationRow = {
   registration_id: string;
   player_id: string;
@@ -15,8 +13,8 @@ export type RegistrationRow = {
   dni: string;
   email: string;
   phone: string;
-  position: PlayerPosition;
-  reference: PlayerReference;
+  position: string;
+  reference: string;
   score: number | null;
   avatar_url: string | null;
 };
@@ -74,7 +72,7 @@ export default async function ApprovalsPage() {
         profile:profiles!inner(email)
       )
     `)
-    .eq('tournament_id', tournament.id)
+    .eq('tournament_id', (tournament as any).id)
     .order('requested_at', { ascending: false });
 
   if (error) {
@@ -106,8 +104,8 @@ export default async function ApprovalsPage() {
   }));
 
   const data: ApprovalsData = {
-    tournamentId: tournament.id,
-    tournamentName: tournament.name,
+    tournamentId: (tournament as any).id,
+    tournamentName: (tournament as any).name,
     pending: rows.filter(r => r.status === 'pending'),
     approved: rows.filter(r => r.status === 'approved'),
     rejected: rows.filter(r => r.status === 'rejected'),

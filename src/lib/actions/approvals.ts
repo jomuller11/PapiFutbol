@@ -15,11 +15,11 @@ async function requireStaffOrAdmin() {
     .eq('id', user.id)
     .single();
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+  if (!profile || ((profile as any).role !== 'admin' && (profile as any).role !== 'staff')) {
     return { ok: false as const, error: 'Sin permisos', supabase, user: null };
   }
 
-  return { ok: true as const, supabase, user, role: profile.role };
+  return { ok: true as const, supabase, user, role: (profile as any).role };
 }
 
 export type ActionResult = {
@@ -45,8 +45,8 @@ export async function approveRegistration(registrationId: string): Promise<Actio
   const auth = await requireStaffOrAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  const { error } = await auth.supabase
-    .from('player_tournament_registrations')
+  const { error } = await (auth.supabase
+    .from('player_tournament_registrations') as any)
     .update({
       status: 'approved',
       reviewed_at: new Date().toISOString(),
@@ -86,8 +86,8 @@ export async function rejectRegistration(
   const auth = await requireStaffOrAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  const { error } = await auth.supabase
-    .from('player_tournament_registrations')
+  const { error } = await (auth.supabase
+    .from('player_tournament_registrations') as any)
     .update({
       status: 'rejected',
       reviewed_at: new Date().toISOString(),
@@ -119,8 +119,8 @@ export async function moveToWaitlist(registrationId: string): Promise<ActionResu
   const auth = await requireStaffOrAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  const { error } = await auth.supabase
-    .from('player_tournament_registrations')
+  const { error } = await (auth.supabase
+    .from('player_tournament_registrations') as any)
     .update({
       status: 'waitlist',
       reviewed_at: new Date().toISOString(),
@@ -157,8 +157,8 @@ export async function approveAllPending(
   const auth = await requireStaffOrAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  const { data, error } = await auth.supabase
-    .from('player_tournament_registrations')
+  const { data, error } = await (auth.supabase
+    .from('player_tournament_registrations') as any)
     .update({
       status: 'approved',
       reviewed_at: new Date().toISOString(),

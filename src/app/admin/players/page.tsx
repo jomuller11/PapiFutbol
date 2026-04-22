@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { PlayersPageClient } from '@/components/admin/players/PlayersPageClient';
-import type { PlayerPosition, PlayerReference } from '@/types/database';
-
 export type PlayerWithStats = {
   id: string;
   first_name: string;
@@ -11,9 +9,9 @@ export type PlayerWithStats = {
   birth_date: string;
   phone: string;
   email: string;
-  position: PlayerPosition;
+  position: string;
   foot: 'derecho' | 'izquierdo' | 'ambidiestro';
-  reference: PlayerReference;
+  reference: string;
   score: number | null;
   avatar_url: string | null;
   team_name: string | null;
@@ -79,24 +77,24 @@ export default async function AdminPlayersPage() {
     const { data: goals } = await supabase
       .from('match_goals')
       .select('player_id, match:matches!inner(tournament_id, status)')
-      .eq('match.tournament_id', activeTournament.id)
+      .eq('match.tournament_id', (activeTournament as any).id)
       .eq('match.status', 'played');
 
     // Tarjetas
     const { data: cards } = await supabase
       .from('match_cards')
       .select('player_id, type, match:matches!inner(tournament_id, status)')
-      .eq('match.tournament_id', activeTournament.id)
+      .eq('match.tournament_id', (activeTournament as any).id)
       .eq('match.status', 'played');
 
     // Equipos (por torneo activo)
     const { data: memberships } = await supabase
       .from('team_memberships')
       .select('player_id, team:teams!inner(name, tournament_id)')
-      .eq('team.tournament_id', activeTournament.id);
+      .eq('team.tournament_id', (activeTournament as any).id);
 
     // Agregar goles
-    (goals ?? []).forEach(g => {
+    ((goals as any[]) ?? []).forEach(g => {
       if (!statsByPlayer[g.player_id]) {
         statsByPlayer[g.player_id] = { goals: 0, yellow: 0, red: 0, blue: 0, matches: 0 };
       }
@@ -104,7 +102,7 @@ export default async function AdminPlayersPage() {
     });
 
     // Agregar tarjetas
-    (cards ?? []).forEach(c => {
+    ((cards as any[]) ?? []).forEach(c => {
       if (!statsByPlayer[c.player_id]) {
         statsByPlayer[c.player_id] = { goals: 0, yellow: 0, red: 0, blue: 0, matches: 0 };
       }
@@ -114,7 +112,7 @@ export default async function AdminPlayersPage() {
     });
 
     // Mapear equipos
-    (memberships ?? []).forEach((m: any) => {
+    ((memberships as any[]) ?? []).forEach((m: any) => {
       if (m.team?.name) teamsByPlayer[m.player_id] = m.team.name;
     });
   }

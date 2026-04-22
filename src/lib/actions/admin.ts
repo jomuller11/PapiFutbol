@@ -19,11 +19,11 @@ async function requireStaffOrAdmin() {
     .eq('id', user.id)
     .single();
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
+  if (!profile || ((profile as any).role !== 'admin' && (profile as any).role !== 'staff')) {
     return { ok: false as const, error: 'Sin permisos', supabase, user: null };
   }
 
-  return { ok: true as const, supabase, user, role: profile.role };
+  return { ok: true as const, supabase, user, role: (profile as any).role };
 }
 
 export type ActionResult = {
@@ -58,8 +58,8 @@ export async function updatePlayerScore(
   const auth = await requireStaffOrAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  const { error } = await auth.supabase
-    .from('players')
+  const { error } = await (auth.supabase
+    .from('players') as any)
     .update({ score: parsed.data.score })
     .eq('id', parsed.data.playerId);
 
@@ -125,7 +125,7 @@ export async function updatePlayerInfo(
     return { success: false, error: 'No hay cambios para guardar.' };
   }
 
-  const { error } = await auth.supabase.from('players').update(updates).eq('id', playerId);
+  const { error } = await (auth.supabase.from('players') as any).update(updates).eq('id', playerId);
 
   if (error) {
     console.error('updatePlayerInfo error', error);

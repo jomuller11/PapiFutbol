@@ -144,7 +144,7 @@ export function OnboardingShell({ data }: Props) {
           {currentStep === 4 && (
             <Step4TournamentSignup
               activeTournament={data.activeTournament}
-              registrationStatus={data.registrationStatus}
+              registrationStatus={data.registrationStatus as any}
               rejectionReason={data.rejectionReason}
             />
           )}

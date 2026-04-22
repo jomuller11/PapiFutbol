@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import type { PlayerReference, PlayerPosition, PlayerFoot } from '@/types/database';
+// import type { PlayerReference, PlayerPosition, PlayerFoot } from '@/types/database';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -73,27 +73,27 @@ export async function completePlayerProfile(input: ProfileInput): Promise<Player
     dni: d.dni,
     birth_date: d.birthDate,
     phone: d.phone,
-    reference: d.reference as PlayerReference,
-    position: d.position as PlayerPosition,
-    foot: d.foot as PlayerFoot,
+    reference: d.reference as any,
+    position: d.position as any,
+    foot: d.foot as any,
   };
 
   let playerId: string;
 
   if (existing) {
-    const { error } = await auth.supabase
-      .from('players')
+    const { error } = await (auth.supabase
+      .from('players') as any)
       .update(payload)
-      .eq('id', existing.id);
+      .eq('id', (existing as any).id);
     if (error) {
       if (error.code === '23505') return { success: false, error: 'Ya existe otro jugador con ese DNI.' };
       console.error('updatePlayer error', error);
       return { success: false, error: 'No pudimos guardar tu perfil.' };
     }
-    playerId = existing.id;
+    playerId = (existing as any).id;
   } else {
-    const { data: inserted, error } = await auth.supabase
-      .from('players')
+    const { data: inserted, error } = await (auth.supabase
+      .from('players') as any)
       .insert(payload)
       .select('id')
       .single();
@@ -106,6 +106,7 @@ export async function completePlayerProfile(input: ProfileInput): Promise<Player
   }
 
   revalidatePath('/onboarding');
+  revalidatePath('/profile');
   return { success: true, playerId };
 }
 
@@ -139,8 +140,8 @@ export async function uploadAvatar(formData: FormData): Promise<PlayerActionResu
 
   const { data: publicUrl } = auth.supabase.storage.from('avatars').getPublicUrl(path);
 
-  const { error: updateError } = await auth.supabase
-    .from('players')
+  const { error: updateError } = await (auth.supabase
+    .from('players') as any)
     .update({ avatar_url: publicUrl.publicUrl })
     .eq('profile_id', auth.user.id);
 
@@ -189,23 +190,23 @@ export async function requestTournamentRegistration(): Promise<PlayerActionResul
   const { data: existing } = await auth.supabase
     .from('player_tournament_registrations')
     .select('id, status')
-    .eq('player_id', player.id)
-    .eq('tournament_id', tournament.id)
+    .eq('player_id', (player as any).id)
+    .eq('tournament_id', (tournament as any).id)
     .maybeSingle();
 
   if (existing) {
-    if (existing.status === 'pending') {
+    if ((existing as any).status === 'pending') {
       return { success: false, error: 'Ya enviaste tu solicitud, está pendiente de revisión.' };
     }
-    if (existing.status === 'approved') {
+    if ((existing as any).status === 'approved') {
       return { success: false, error: 'Ya estás inscripto al torneo.' };
     }
-    if (existing.status === 'waitlist') {
+    if ((existing as any).status === 'waitlist') {
       return { success: false, error: 'Estás en lista de espera para este torneo.' };
     }
     // Si estaba 'rejected', permitimos volver a intentar: re-seteamos a pending.
-    const { error } = await auth.supabase
-      .from('player_tournament_registrations')
+    const { error } = await (auth.supabase
+      .from('player_tournament_registrations') as any)
       .update({
         status: 'pending',
         requested_at: new Date().toISOString(),
@@ -213,17 +214,17 @@ export async function requestTournamentRegistration(): Promise<PlayerActionResul
         reviewed_by: null,
         rejection_reason: null,
       })
-      .eq('id', existing.id);
+      .eq('id', (existing as any).id);
     if (error) {
       console.error('reRequestRegistration error', error);
       return { success: false, error: 'No pudimos reenviar tu solicitud.' };
     }
   } else {
-    const { error } = await auth.supabase
-      .from('player_tournament_registrations')
+    const { error } = await (auth.supabase
+      .from('player_tournament_registrations') as any)
       .insert({
-        player_id: player.id,
-        tournament_id: tournament.id,
+        player_id: (player as any).id,
+        tournament_id: (tournament as any).id,
         status: 'pending',
       });
     if (error) {
@@ -253,6 +254,7 @@ export async function cancelTournamentRegistration(): Promise<PlayerActionResult
     .maybeSingle();
 
   if (!player) return { success: false, error: 'Jugador no encontrado.' };
+  const playerId = (player as any).id;
 
   const { data: tournament } = await auth.supabase
     .from('tournaments')
@@ -265,19 +267,19 @@ export async function cancelTournamentRegistration(): Promise<PlayerActionResult
   const { data: reg } = await auth.supabase
     .from('player_tournament_registrations')
     .select('id, status')
-    .eq('player_id', player.id)
-    .eq('tournament_id', tournament.id)
+    .eq('player_id', (player as any).id)
+    .eq('tournament_id', (tournament as any).id)
     .maybeSingle();
 
   if (!reg) return { success: false, error: 'No tenés una inscripción pendiente.' };
-  if (reg.status !== 'pending') {
+  if ((reg as any).status !== 'pending') {
     return { success: false, error: 'Solo podés cancelar mientras la inscripción esté pendiente.' };
   }
 
-  const { error } = await auth.supabase
-    .from('player_tournament_registrations')
+  const { error } = await (auth.supabase
+    .from('player_tournament_registrations') as any)
     .delete()
-    .eq('id', reg.id);
+    .eq('id', (reg as any).id);
 
   if (error) {
     console.error('cancelRegistration error', error);

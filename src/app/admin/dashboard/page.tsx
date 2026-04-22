@@ -1,176 +1,307 @@
-'use client';
-
 import Link from 'next/link';
-import { 
-  Trophy, Users, CalendarDays, Activity, Target, Square, 
-  Eye, ArrowRight, AlertTriangle 
+import { redirect } from 'next/navigation';
+import {
+  Trophy, Users, CalendarDays, UserCheck, ArrowRight,
+  Clock, Shield, AlertCircle, CheckCircle2, Target,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
 
-const MOCK_TEAMS = [
-  { id: 1, name: 'Los Tigres', avg: 78.5, zone: 'A', pj: 3, pg: 2, pe: 1, pp: 0, gf: 7, gc: 3, pts: 7 },
-  { id: 2, name: 'FC Boreal', avg: 85.0, zone: 'A', pj: 3, pg: 3, pe: 0, pp: 0, gf: 11, gc: 2, pts: 9 },
-  { id: 5, name: 'Atlético Este', avg: 76.8, zone: 'A', pj: 3, pg: 1, pe: 0, pp: 2, gf: 5, gc: 8, pts: 3 },
-];
+export default async function AdminDashboard() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-const MOCK_MATCHES = [
-  { id: 1, time: '10:00', field: 1, home: 'Los Tigres', away: 'Atlético Este', zone: 'A' },
-  { id: 2, time: '10:00', field: 2, home: 'FC Boreal', away: 'Racing del Sur', zone: 'A' },
-  { id: 3, time: '11:30', field: 1, home: 'Atlético Este', away: 'FC Boreal', zone: 'A' },
-];
+  // Torneo activo
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('id, name, year, status, max_teams, players_per_team')
+    .eq('status', 'active')
+    .maybeSingle();
 
-export default function AdminDashboard() {
+  // Stats en paralelo
+  const tournamentId = (tournament as any)?.id;
+
+  const [
+    { count: pendingCount },
+    { count: approvedCount },
+    { count: teamsCount },
+    { count: playedCount },
+    { data: upcomingMatches },
+    { data: recentMatches },
+  ] = await Promise.all([
+    // Inscripciones pendientes
+    tournamentId
+      ? supabase.from('player_tournament_registrations')
+          .select('id', { count: 'exact', head: true })
+          .eq('tournament_id', tournamentId)
+          .eq('status', 'pending')
+      : Promise.resolve({ count: 0 }),
+    // Jugadores aprobados
+    tournamentId
+      ? supabase.from('player_tournament_registrations')
+          .select('id', { count: 'exact', head: true })
+          .eq('tournament_id', tournamentId)
+          .eq('status', 'approved')
+      : Promise.resolve({ count: 0 }),
+    // Equipos
+    tournamentId
+      ? supabase.from('teams')
+          .select('id', { count: 'exact', head: true })
+          .eq('tournament_id', tournamentId)
+      : Promise.resolve({ count: 0 }),
+    // Partidos jugados
+    tournamentId
+      ? supabase.from('matches')
+          .select('id', { count: 'exact', head: true })
+          .eq('tournament_id', tournamentId)
+          .eq('status', 'played')
+      : Promise.resolve({ count: 0 }),
+    // Próximos 3 partidos
+    tournamentId
+      ? supabase.from('matches')
+          .select(`
+            id, match_date, match_time, field_number, round_number,
+            home_team:teams!matches_home_team_id_fkey(name, short_name, color),
+            away_team:teams!matches_away_team_id_fkey(name, short_name, color)
+          `)
+          .eq('tournament_id', tournamentId)
+          .eq('status', 'scheduled')
+          .order('match_date', { ascending: true })
+          .order('match_time', { ascending: true })
+          .limit(3)
+      : Promise.resolve({ data: [] }),
+    // Últimos 3 resultados
+    tournamentId
+      ? supabase.from('matches')
+          .select(`
+            id, match_date, round_number, home_score, away_score,
+            home_team:teams!matches_home_team_id_fkey(name, short_name, color),
+            away_team:teams!matches_away_team_id_fkey(name, short_name, color)
+          `)
+          .eq('tournament_id', tournamentId)
+          .eq('status', 'played')
+          .order('match_date', { ascending: false })
+          .limit(3)
+      : Promise.resolve({ data: [] }),
+  ]);
+
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Hero */}
-      <div className="relative overflow-hidden bg-neutral-900 border border-neutral-800 mb-6">
-        <div className="absolute inset-0 opacity-40" style={{
-          backgroundImage: 'linear-gradient(90deg, rgba(34,197,94,0.03) 50%, transparent 50%), linear-gradient(rgba(34,197,94,0.08), rgba(34,197,94,0.08))',
-          backgroundSize: '60px 100%, 100% 100%'
-        }} />
-        <div className="absolute top-0 left-0 w-full h-1" style={{
-          background: 'repeating-linear-gradient(45deg, #fbbf24 0 12px, #171717 12px 24px)'
-        }} />
-        <div className="relative p-8 flex items-center justify-between">
-          <div>
-            <div className="font-mono text-[10px] text-lime-400 tracking-widest mb-2 font-bold">EDICIÓN · 2026</div>
-            <h2 className="font-display text-5xl mb-2 font-bold">Apertura 2026</h2>
-            <div className="flex items-center gap-6 text-sm text-neutral-400">
-              <div className="flex items-center gap-2"><Trophy className="w-4 h-4" /> Fase de Grupos · Fecha 3/5</div>
-              <div className="flex items-center gap-2"><Users className="w-4 h-4" /> 72 jugadores · 6 equipos</div>
-              <div className="flex items-center gap-2"><CalendarDays className="w-4 h-4" /> Próxima fecha: 25 Abr</div>
-            </div>
-          </div>
-          <Link
-            href="/admin/tournament"
-            className="bg-lime-400 text-neutral-950 px-5 py-3 font-semibold text-sm hover:bg-lime-300 transition-colors flex items-center gap-2"
-          >
-            Gestionar <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
+    <div className="max-w-6xl mx-auto space-y-6">
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard label="Partidos jugados" value="18" sub="+4 esta fecha" color="lime" icon={Activity} />
-        <StatCard label="Goles totales" value="63" sub="3.5 por partido" color="yellow" icon={Target} />
-        <StatCard label="Tarjetas" value="42" sub="38 A · 2 R · 2 Az" color="orange" icon={Square} />
-        <StatCard label="Veedores asignados" value="24/24" sub="100% cobertura" color="neutral" icon={Eye} />
-      </div>
-
-      <div className="grid grid-cols-3 gap-6">
-        {/* Próximos partidos */}
-        <div className="col-span-2 bg-neutral-900 border border-neutral-800">
-          <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between">
-            <h3 className="font-display text-sm tracking-wide font-bold">PRÓXIMOS PARTIDOS</h3>
-            <Link href="/admin/fixture" className="text-xs text-lime-400 hover:underline">Ver fixture completo →</Link>
-          </div>
-          <div className="divide-y divide-neutral-800">
-            {MOCK_MATCHES.map(m => (
-              <div key={m.id} className="px-5 py-3 hover:bg-neutral-800/50 flex items-center gap-4">
-                <div className="font-mono text-[10px] text-neutral-500 w-20">
-                  <div>{m.time}</div>
-                  <div className="text-lime-400">CANCHA {m.field}</div>
-                </div>
-                <div className="flex-1 flex items-center justify-center gap-3 text-sm">
-                  <span className="font-semibold text-right flex-1">{m.home}</span>
-                  <span className="font-mono text-xs text-neutral-500">VS</span>
-                  <span className="font-semibold flex-1">{m.away}</span>
-                </div>
-                <div className="text-[10px] font-mono text-neutral-500 bg-neutral-800 px-2 py-1">
-                  ZONA {m.zone}
-                </div>
+      {/* Header torneo */}
+      {tournament ? (
+        <div className="bg-blue-900 text-white p-6 relative overflow-hidden">
+          <div className="absolute inset-0 stadium-grid opacity-20" />
+          <div className="relative flex items-center justify-between">
+            <div>
+              <div className="font-mono text-[10px] text-orange-400 tracking-widest font-bold mb-1 uppercase">
+                Torneo activo · {(tournament as any).year}
               </div>
-            ))}
+              <h1 className="font-display text-3xl font-bold">{(tournament as any).name}</h1>
+              <div className="flex items-center gap-4 mt-2 text-sm text-blue-200 font-medium">
+                <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {approvedCount ?? 0} jugadores</span>
+                <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> {teamsCount ?? 0} equipos</span>
+                <span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" /> {playedCount ?? 0} partidos jugados</span>
+              </div>
+            </div>
+            <Link
+              href="/admin/tournament"
+              className="bg-white text-blue-900 px-4 py-2.5 text-sm font-semibold hover:bg-blue-50 transition-colors flex items-center gap-2 flex-shrink-0"
+            >
+              Gestionar <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 p-6 flex items-start gap-4">
+          <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-semibold text-amber-900">No hay torneo activo</div>
+            <div className="text-sm text-amber-800 mt-0.5">Creá un torneo para comenzar a gestionarlo.</div>
+            <Link href="/admin/tournament" className="text-sm font-semibold text-amber-900 hover:underline mt-2 inline-flex items-center gap-1">
+              Crear torneo <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
 
-        {/* Atención requerida */}
-        <div className="bg-neutral-900 border border-neutral-800">
-          <div className="px-5 py-4 border-b border-neutral-800 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-400" />
-            <h3 className="font-display text-sm tracking-wide font-bold">PENDIENTES</h3>
+      {/* Stats rápidas */}
+      <div className="grid grid-cols-4 gap-4">
+        <StatCard
+          icon={UserCheck}
+          label="Inscripciones pendientes"
+          value={pendingCount ?? 0}
+          href="/admin/approvals"
+          highlight={!!pendingCount && pendingCount > 0}
+        />
+        <StatCard
+          icon={Users}
+          label="Jugadores aprobados"
+          value={approvedCount ?? 0}
+          href="/admin/players"
+        />
+        <StatCard
+          icon={Shield}
+          label="Equipos"
+          value={teamsCount ?? 0}
+          href="/admin/teams"
+        />
+        <StatCard
+          icon={CalendarDays}
+          label="Partidos jugados"
+          value={playedCount ?? 0}
+          href="/admin/fixture"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        {/* Próximos partidos */}
+        <div className="bg-white border border-slate-200">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-blue-700" />
+              <span className="font-semibold text-sm">Próximos partidos</span>
+            </div>
+            <Link href="/admin/fixture" className="text-xs text-blue-700 font-semibold hover:underline flex items-center gap-0.5">
+              Ver todos <ArrowRight className="w-3 h-3" />
+            </Link>
           </div>
-          <div className="p-5 space-y-3">
-            <PendingItem text="2 jugadores sin equipo asignado" action="Sortear" />
-            <PendingItem text="Fecha 4 sin veedores confirmados" action="Asignar" />
-            <PendingItem text="Partido del 18/04 sin resultado" action="Cargar" />
-            <PendingItem text="Configurar Fase de Eliminatoria" action="Configurar" />
+          {upcomingMatches && (upcomingMatches as any[]).length > 0 ? (
+            <div className="divide-y divide-slate-100">
+              {(upcomingMatches as any[]).map(m => (
+                <Link key={m.id} href={`/admin/fixture`} className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
+                  <div className="text-center flex-shrink-0 w-14">
+                    <div className="font-mono text-sm font-bold text-blue-900">{(m.match_time as string)?.substring(0, 5)}</div>
+                    <div className="font-mono text-[9px] text-slate-400 uppercase tracking-widest">C.{m.field_number}</div>
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <MatchTeamRow team={m.home_team} />
+                    <MatchTeamRow team={m.away_team} />
+                  </div>
+                  <div className="font-mono text-[9px] text-slate-400 uppercase tracking-widest flex-shrink-0">
+                    F{m.round_number}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <EmptySlot text="No hay partidos programados próximamente." />
+          )}
+        </div>
+
+        {/* Últimos resultados */}
+        <div className="bg-white border border-slate-200">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-blue-700" />
+              <span className="font-semibold text-sm">Últimos resultados</span>
+            </div>
+            <Link href="/admin/fixture" className="text-xs text-blue-700 font-semibold hover:underline flex items-center gap-0.5">
+              Ver todos <ArrowRight className="w-3 h-3" />
+            </Link>
           </div>
+          {recentMatches && (recentMatches as any[]).length > 0 ? (
+            <div className="divide-y divide-slate-100">
+              {(recentMatches as any[]).map(m => {
+                const homeWon = m.home_score > m.away_score;
+                const awayWon = m.away_score > m.home_score;
+                return (
+                  <div key={m.id} className="flex items-center gap-4 px-5 py-3">
+                    <div className="text-center flex-shrink-0 w-14">
+                      <div className="font-display text-xl text-blue-900 leading-none">
+                        {m.home_score}–{m.away_score}
+                      </div>
+                      <div className="font-mono text-[9px] text-slate-400 uppercase tracking-widest mt-1">F{m.round_number}</div>
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <MatchTeamRow team={m.home_team} bold={homeWon} />
+                      <MatchTeamRow team={m.away_team} bold={awayWon} />
+                    </div>
+                    {!homeWon && !awayWon && (
+                      <div className="font-mono text-[9px] text-slate-400 uppercase flex-shrink-0">EMPATE</div>
+                    )}
+                    {(homeWon || awayWon) && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptySlot text="Aún no hay partidos jugados." />
+          )}
         </div>
       </div>
 
-      {/* Tabla de posiciones resumida */}
-      <div className="mt-6 bg-neutral-900 border border-neutral-800">
-        <div className="px-5 py-4 border-b border-neutral-800">
-          <h3 className="font-display text-sm tracking-wide font-bold">TABLA DE POSICIONES · ZONA A</h3>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="text-[10px] font-mono text-neutral-500 uppercase">
-            <tr className="border-b border-neutral-800">
-              <th className="text-left px-5 py-3">#</th>
-              <th className="text-left py-3">Equipo</th>
-              <th className="text-center py-3">PJ</th>
-              <th className="text-center py-3">PG</th>
-              <th className="text-center py-3">PE</th>
-              <th className="text-center py-3">PP</th>
-              <th className="text-center py-3">GF</th>
-              <th className="text-center py-3">GC</th>
-              <th className="text-center py-3">DIF</th>
-              <th className="text-center py-3 px-5">PTS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_TEAMS.sort((a,b) => b.pts - a.pts).map((t, i) => (
-              <tr key={t.id} className="border-b border-neutral-800 last:border-0 hover:bg-neutral-800/50">
-                <td className="px-5 py-3 font-mono text-neutral-500">{i + 1}</td>
-                <td className="py-3 font-semibold">{t.name}</td>
-                <td className="text-center font-mono">{t.pj}</td>
-                <td className="text-center font-mono text-lime-400">{t.pg}</td>
-                <td className="text-center font-mono">{t.pe}</td>
-                <td className="text-center font-mono text-red-400">{t.pp}</td>
-                <td className="text-center font-mono">{t.gf}</td>
-                <td className="text-center font-mono">{t.gc}</td>
-                <td className="text-center font-mono">{t.gf - t.gc > 0 ? '+' : ''}{t.gf - t.gc}</td>
-                <td className="text-center font-display text-base px-5 font-bold">{t.pts}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Accesos rápidos */}
+      <div className="grid grid-cols-4 gap-3">
+        <QuickLink href="/admin/approvals" icon={UserCheck} label="Aprobar inscripciones" badge={pendingCount ?? 0} />
+        <QuickLink href="/admin/players" icon={Users} label="Gestionar jugadores" />
+        <QuickLink href="/admin/teams" icon={Shield} label="Armar equipos" />
+        <QuickLink href="/admin/fixture" icon={CalendarDays} label="Ver fixture" />
       </div>
+
     </div>
   );
 }
 
-function StatCard({ label, value, sub, color, icon: Icon }: any) {
-  const colors: Record<string, string> = {
-    lime: 'border-lime-400/30 bg-lime-400/5',
-    yellow: 'border-yellow-400/30 bg-yellow-400/5',
-    orange: 'border-orange-400/30 bg-orange-400/5',
-    neutral: 'border-neutral-700 bg-neutral-900',
-  };
-  const textColors: Record<string, string> = {
-    lime: 'text-lime-400', yellow: 'text-yellow-400', orange: 'text-orange-400', neutral: 'text-neutral-400'
-  };
+// ─── Subcomponentes ──────────────────────────────────────────────────────────
+
+function StatCard({ icon: Icon, label, value, href, highlight }: {
+  icon: React.ElementType; label: string; value: number; href: string; highlight?: boolean;
+}) {
   return (
-    <div className={`border p-5 ${colors[color]}`}>
+    <Link
+      href={href}
+      className={`bg-white border p-5 block hover:border-blue-700 hover:shadow-sm transition-all group ${
+        highlight ? 'border-orange-300 bg-orange-50' : 'border-slate-200'
+      }`}
+    >
       <div className="flex items-start justify-between mb-3">
-        <div className="font-mono text-[10px] text-neutral-500 uppercase tracking-widest font-bold">{label}</div>
-        <Icon className={`w-4 h-4 ${textColors[color]}`} />
+        <Icon className={`w-5 h-5 ${highlight ? 'text-orange-500' : 'text-slate-400'} group-hover:text-blue-700 transition-colors`} />
+        {highlight && <span className="w-2 h-2 bg-orange-500 rounded-full" />}
       </div>
-      <div className="font-display text-4xl mb-1 font-bold">{value}</div>
-      <div className="text-xs text-neutral-500">{sub}</div>
+      <div className={`font-display text-4xl font-bold mb-1 ${highlight ? 'text-orange-600' : 'text-blue-900'}`}>
+        {value}
+      </div>
+      <div className="font-mono text-[9px] text-slate-500 uppercase tracking-widest">{label}</div>
+    </Link>
+  );
+}
+
+function QuickLink({ href, icon: Icon, label, badge }: {
+  href: string; icon: React.ElementType; label: string; badge?: number;
+}) {
+  return (
+    <Link
+      href={href}
+      className="bg-white border border-slate-200 p-4 flex items-center gap-3 hover:border-blue-700 hover:shadow-sm transition-all group"
+    >
+      <Icon className="w-4 h-4 text-slate-400 group-hover:text-blue-700 flex-shrink-0" />
+      <span className="text-sm font-medium text-slate-700 flex-1">{label}</span>
+      {badge != null && badge > 0 && (
+        <span className="bg-orange-500 text-white text-[10px] font-bold font-mono w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">
+          {badge}
+        </span>
+      )}
+      <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-700 flex-shrink-0" />
+    </Link>
+  );
+}
+
+function MatchTeamRow({ team, bold }: { team: any; bold?: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: team?.color ?? '#94a3b8' }} />
+      <span className={`text-xs truncate ${bold ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
+        {team?.name ?? '—'}
+      </span>
     </div>
   );
 }
 
-function PendingItem({ text, action }: any) {
+function EmptySlot({ text }: { text: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <div className="flex items-center gap-2 text-neutral-300">
-        <div className="w-1 h-1 bg-yellow-400 rounded-full flex-shrink-0" />
-        <span className="text-xs">{text}</span>
-      </div>
-      <button className="text-[10px] font-mono text-lime-400 hover:underline uppercase tracking-wider font-bold">{action}</button>
-    </div>
+    <div className="px-5 py-8 text-center text-sm text-slate-400">{text}</div>
   );
 }

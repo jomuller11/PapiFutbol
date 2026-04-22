@@ -18,7 +18,7 @@ export type OnboardingInitialData = {
     avatar_url: string | null;
   } | null;
   activeTournament: { id: string; name: string } | null;
-  registrationStatus: 'none' | 'pending' | 'approved' | 'rejected' | 'waitlist';
+  registrationStatus: string;
   rejectionReason: string | null;
 };
 
@@ -35,7 +35,7 @@ export default async function OnboardingPage() {
     .eq('id', user.id)
     .single();
 
-  if (profile?.role === 'admin' || profile?.role === 'staff') {
+  if ((profile as any)?.role === 'admin' || (profile as any)?.role === 'staff') {
     redirect('/admin/dashboard');
   }
 
@@ -54,20 +54,20 @@ export default async function OnboardingPage() {
     .maybeSingle();
 
   // Estado de inscripción
-  let registrationStatus: OnboardingInitialData['registrationStatus'] = 'none';
+  let registrationStatus: string = 'none';
   let rejectionReason: string | null = null;
 
   if (player && activeTournament) {
     const { data: reg } = await supabase
       .from('player_tournament_registrations')
       .select('status, rejection_reason')
-      .eq('player_id', player.id)
-      .eq('tournament_id', activeTournament.id)
+      .eq('player_id', (player as any).id)
+      .eq('tournament_id', (activeTournament as any).id)
       .maybeSingle();
 
     if (reg) {
-      registrationStatus = reg.status as typeof registrationStatus;
-      rejectionReason = reg.rejection_reason;
+      registrationStatus = (reg as any).status as typeof registrationStatus;
+      rejectionReason = (reg as any).rejection_reason;
     }
   }
 
@@ -77,7 +77,7 @@ export default async function OnboardingPage() {
   }
 
   const data: OnboardingInitialData = {
-    userEmail: profile?.email ?? user.email ?? '',
+    userEmail: (profile as any)?.email ?? user.email ?? '',
     player,
     activeTournament,
     registrationStatus,

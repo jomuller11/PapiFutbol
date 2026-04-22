@@ -1,729 +1,550 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import {
-  Trophy, Plus, ChevronRight, Hash, Users, MapPin,
-  Clock, AlertCircle, CheckCircle2, Zap, Settings,
-  CalendarDays, Edit3, X, Loader2
+  Trophy, Users, CalendarDays, Clock, MapPin, Plus, Settings, Edit3,
+  Trash2, Hash, AlertCircle, Play, CheckCircle2, Ban, Save,
 } from 'lucide-react';
 import {
   createTournament,
   setTournamentStatus,
-  createPhase,
   updateTimeSlots,
+  deletePhase,
 } from '@/lib/actions/tournament';
-import type { Database } from '@/types/database';
+import { PhaseEditor, type Phase as PhaseBase } from './PhaseEditor';
+import { GroupsManager, type Group } from './GroupsManager';
 
-type Tournament = Database['public']['Tables']['tournaments']['Row'];
-type Phase = Database['public']['Tables']['phases']['Row'];
+type Tournament = {
+  id: string;
+  name: string;
+  year: number;
+  status: 'draft' | 'active' | 'finished' | 'cancelled';
+  fields_count: number;
+  players_per_team: number;
+  max_teams: number;
+  time_slots: string[];
+  start_date: string | null;
+  end_date: string | null;
+};
 
-interface Props {
+type PhaseWithGroups = PhaseBase & {
+  groups: Group[];
+};
+
+type Props = {
   tournament: Tournament | null;
-  phases: Phase[];
+  phases: PhaseWithGroups[];
   approvedPlayersCount: number;
-  role: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Shell
-// ─────────────────────────────────────────────────────────────────────────────
+  role: 'admin' | 'staff';
+};
 
 export function TournamentShell({ tournament, phases, approvedPlayersCount, role }: Props) {
-  const isAdmin = role === 'admin';
+  if (!tournament) {
+    return <CreateTournamentForm />;
+  }
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {!isAdmin && (
-        <div className="bg-blue-50 border border-blue-200 p-3 flex items-center gap-2 text-sm text-blue-800">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          Estás en modo <strong className="ml-1">solo lectura</strong>. Solo los administradores pueden modificar la configuración del torneo.
-        </div>
-      )}
-      {tournament ? (
-        <ActiveTournamentView
-          tournament={tournament}
-          phases={phases}
-          approvedPlayersCount={approvedPlayersCount}
-          isAdmin={isAdmin}
-        />
-      ) : (
-        <NoTournamentView isAdmin={isAdmin} />
-      )}
-    </div>
+    <TournamentDetail
+      tournament={tournament}
+      phases={phases}
+      approvedPlayersCount={approvedPlayersCount}
+      role={role}
+    />
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Empty state: no hay torneo
+// Formulario para crear torneo nuevo (cuando no hay ninguno)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function NoTournamentView({ isAdmin }: { isAdmin: boolean }) {
-  const [open, setOpen] = useState(false);
+function CreateTournamentForm() {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const handleSubmit = (formData: FormData) => {
+    setError(null);
+    setFieldErrors({});
+    startTransition(async () => {
+      const result = await createTournament(formData);
+      if (!result.success) {
+        setError(result.error);
+        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
+      }
+    });
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white border border-slate-200 p-8">
+        <div className="font-mono text-[10px] text-orange-600 tracking-widest font-semibold mb-2">
+          NUEVO TORNEO
+        </div>
+        <h1 className="font-serif text-2xl font-bold mb-1">Creá tu primer torneo</h1>
+        <p className="text-sm text-slate-500 mb-6">
+          Configurá los datos básicos. Las fases, canchas y equipos se agregan después.
+        </p>
+
+        <form action={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Nombre" name="name" required error={fieldErrors.name?.[0]} placeholder="Apertura 2026" />
+            <Field label="Año" name="year" type="number" required defaultValue={new Date().getFullYear()} error={fieldErrors.year?.[0]} />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Canchas" name="fields_count" type="number" required defaultValue={4} error={fieldErrors.fields_count?.[0]} />
+            <Field label="Jugadores/equipo" name="players_per_team" type="number" required defaultValue={12} error={fieldErrors.players_per_team?.[0]} />
+            <Field label="Máx. equipos" name="max_teams" type="number" required defaultValue={24} error={fieldErrors.max_teams?.[0]} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Fecha inicio" name="start_date" type="date" error={fieldErrors.start_date?.[0]} />
+            <Field label="Fecha fin" name="end_date" type="date" error={fieldErrors.end_date?.[0]} />
+          </div>
+          <Field
+            label="Horarios (separados por coma)"
+            name="time_slots"
+            required
+            defaultValue="10:00, 11:30, 13:00"
+            error={fieldErrors.time_slots?.[0]}
+            placeholder="10:00, 11:30, 13:00"
+          />
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 flex items-start gap-2">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <div>{error}</div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isPending}
+            className="w-full bg-blue-900 text-white py-2.5 text-sm font-medium hover:bg-blue-800 flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            {isPending ? 'Creando...' : 'Crear torneo'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label, name, type, required, defaultValue, placeholder, error,
+}: {
+  label: string;
+  name: string;
+  type?: string;
+  required?: boolean;
+  defaultValue?: string | number;
+  placeholder?: string;
+  error?: string;
+}) {
   return (
     <div>
-      {/* Banner informativo */}
-      <div className="bg-amber-50 border border-amber-200 p-4 flex items-start gap-3 mb-6">
-        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-        <div className="flex-1 text-sm">
-          <span className="font-semibold text-amber-900">No hay ningún torneo activo.</span>
-          <span className="text-amber-800">
-            {isAdmin
-              ? ' Creá uno para habilitar las inscripciones y el fixture.'
-              : ' Cuando el administrador cree uno, aparecerá acá.'}
-          </span>
-        </div>
-      </div>
-
-      {isAdmin && (
-        open ? (
-          <div className="bg-white border border-slate-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-serif text-lg font-bold text-slate-900">Nuevo torneo</h2>
-              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-700">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <CreateTournamentForm onCancel={() => setOpen(false)} />
-          </div>
-        ) : (
-          <button
-            onClick={() => setOpen(true)}
-            className="w-full py-12 border-2 border-dashed border-slate-300 hover:border-blue-700 text-slate-400 hover:text-blue-700 flex flex-col items-center gap-3 transition-colors"
-          >
-            <Trophy className="w-8 h-8" />
-            <span className="font-semibold">Crear nuevo torneo</span>
-            <span className="text-sm">Configurá el año, canchas y horarios</span>
-          </button>
-        )
-      )}
+      <label className="font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold block mb-1.5">
+        {label} {required && <span className="text-orange-600">*</span>}
+      </label>
+      <input
+        type={type || 'text'}
+        name={name}
+        required={required}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        className={`w-full border px-3 py-2 text-sm focus:outline-none ${
+          error ? 'border-red-400' : 'border-slate-200 focus:border-blue-700'
+        }`}
+      />
+      {error && <div className="text-xs text-red-600 mt-1">{error}</div>}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Vista con torneo existente
+// Detalle del torneo existente (con fases, zonas, canchas, horarios)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ActiveTournamentView({
-  tournament,
-  phases,
-  approvedPlayersCount,
-  isAdmin,
+function TournamentDetail({
+  tournament, phases, approvedPlayersCount, role,
 }: {
   tournament: Tournament;
-  phases: Phase[];
+  phases: PhaseWithGroups[];
   approvedPlayersCount: number;
-  isAdmin: boolean;
+  role: 'admin' | 'staff';
 }) {
-  const [showPhaseForm, setShowPhaseForm] = useState(false);
-  const [editingSlots, setEditingSlots] = useState(false);
-
-  const isDraft = tournament.status === 'draft';
-  const isActive = tournament.status === 'active';
-  const isFinished = tournament.status === 'finished' || tournament.status === 'cancelled';
-  const canEdit = isAdmin && !isFinished;
+  const [editingPhase, setEditingPhase] = useState<PhaseBase | null>(null);
+  const [creatingPhase, setCreatingPhase] = useState(false);
 
   return (
-    <>
-      {/* Header del torneo */}
-      <div className="bg-white border border-slate-200 p-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <StatusBadge status={tournament.status} />
-            </div>
-            <h2 className="font-serif text-2xl font-bold text-slate-900">{tournament.name}</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Edición {tournament.year}</p>
-          </div>
+    <div className="max-w-6xl mx-auto">
+      <TournamentHeader tournament={tournament} approvedPlayersCount={approvedPlayersCount} role={role} />
 
-          {/* Acciones de estado — solo admin */}
-          {canEdit && (
-            <div className="flex gap-2 flex-shrink-0">
-              {isDraft && (
-                <StatusActionButton
-                  tournamentId={tournament.id}
-                  nextStatus="active"
-                  label="Activar torneo"
-                  icon={Zap}
-                  variant="primary"
-                />
-              )}
-              {isActive && (
-                <StatusActionButton
-                  tournamentId={tournament.id}
-                  nextStatus="finished"
-                  label="Cerrar torneo"
-                  icon={CheckCircle2}
-                  variant="secondary"
-                />
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Stats del header */}
-        <div className="grid grid-cols-4 gap-4 pt-4 border-t border-slate-100">
-          <StatChip
-            label="Canchas"
-            value={tournament.fields_count.toString()}
-            icon={MapPin}
-          />
-          <StatChip
-            label="Jugadores/equipo"
-            value={tournament.players_per_team.toString()}
-            icon={Users}
-          />
-          <StatChip
-            label="Equipos máx."
-            value={tournament.max_teams.toString()}
-            icon={Trophy}
-          />
-          <StatChip
-            label="Inscriptos aprobados"
-            value={approvedPlayersCount.toString()}
-            icon={CheckCircle2}
-            highlight={approvedPlayersCount > 0}
-          />
-        </div>
-      </div>
-
-      {/* Horarios */}
-      <div className="bg-white border border-slate-200">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-blue-700" />
-            <h3 className="font-semibold text-sm text-slate-900">Horarios de juego</h3>
-          </div>
-          {canEdit && (
-            <button
-              onClick={() => setEditingSlots((v) => !v)}
-              className="text-xs text-blue-700 hover:underline font-medium"
-            >
-              {editingSlots ? 'Cancelar' : 'Editar'}
-            </button>
-          )}
-        </div>
-        <div className="p-5">
-          {editingSlots ? (
-            <TimeSlotsEditor
-              tournamentId={tournament.id}
-              initial={tournament.time_slots}
-              onDone={() => setEditingSlots(false)}
-            />
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {(tournament.time_slots as string[]).map((slot) => (
-                <div
-                  key={slot}
-                  className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 text-sm font-mono font-semibold text-slate-700"
-                >
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  {slot}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="grid grid-cols-2 gap-6 mt-6">
+        <FieldsPanel tournament={tournament} />
+        <TimeSlotsPanel tournament={tournament} />
       </div>
 
       {/* Fases */}
-      <div className="bg-white border border-slate-200">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-blue-700" />
-            <h3 className="font-semibold text-sm text-slate-900">Fases del torneo</h3>
-          </div>
-          {canEdit && (
+      <div className="bg-white border border-slate-200 mt-6">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h3 className="font-serif text-sm font-bold tracking-wide">Fases del torneo</h3>
+          {role === 'admin' && (
             <button
-              onClick={() => setShowPhaseForm((v) => !v)}
-              className="flex items-center gap-1.5 text-xs bg-blue-900 text-white px-3 py-1.5 font-semibold hover:bg-blue-800 transition-colors"
+              onClick={() => setCreatingPhase(true)}
+              className="bg-blue-900 text-white px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 hover:bg-blue-800"
             >
-              {showPhaseForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-              {showPhaseForm ? 'Cancelar' : 'Nueva fase'}
+              <Plus className="w-3.5 h-3.5" /> Nueva fase
             </button>
           )}
         </div>
 
-        <div className="p-5">
-          {phases.length === 0 && !showPhaseForm ? (
-            <p className="text-sm text-slate-500 text-center py-6">
-              No hay fases configuradas. Agregá la primera para estructurar el torneo.
-            </p>
-          ) : (
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 mb-4">
-              {phases.map((phase, i) => (
-                <React.Fragment key={phase.id}>
-                  <PhaseCard phase={phase} index={i} />
-                  {i < phases.length - 1 && (
-                    <ChevronRight className="w-5 h-5 text-slate-300 flex-shrink-0" />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-
-          {showPhaseForm && (
-            <div className="border border-slate-200 p-4 bg-slate-50">
-              <h4 className="text-sm font-semibold text-slate-900 mb-3">
-                Agregar fase {phases.length + 1}
-              </h4>
-              <AddPhaseForm
-                tournamentId={tournament.id}
-                nextOrder={phases.length + 1}
-                onDone={() => setShowPhaseForm(false)}
+        {phases.length === 0 ? (
+          <div className="p-10 text-center text-sm text-slate-500">
+            Todavía no hay fases. Agregá la primera para empezar a armar el torneo.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-200">
+            {phases.map(phase => (
+              <PhaseCard
+                key={phase.id}
+                phase={phase}
+                onEdit={() => setEditingPhase(phase)}
+                canEdit={role === 'admin'}
               />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Fechas (si existen) */}
-      {(tournament.start_date || tournament.end_date) && (
-        <div className="bg-white border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <CalendarDays className="w-4 h-4 text-blue-700" />
-            <h3 className="font-semibold text-sm text-slate-900">Período del torneo</h3>
-          </div>
-          <div className="flex items-center gap-6 text-sm text-slate-600">
-            {tournament.start_date && (
-              <div>
-                <span className="font-mono text-[10px] text-slate-400 uppercase tracking-wider block">Inicio</span>
-                <span className="font-semibold">{formatDate(tournament.start_date)}</span>
-              </div>
-            )}
-            {tournament.end_date && (
-              <>
-                <ChevronRight className="w-4 h-4 text-slate-300" />
-                <div>
-                  <span className="font-mono text-[10px] text-slate-400 uppercase tracking-wider block">Fin</span>
-                  <span className="font-semibold">{formatDate(tournament.end_date)}</span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Formulario: crear torneo
-// ─────────────────────────────────────────────────────────────────────────────
-
-function CreateTournamentForm({ onCancel }: { onCancel: () => void }) {
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const currentYear = new Date().getFullYear();
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    const fd = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const result = await createTournament(fd);
-      if (!result.success) {
-        setError(result.error);
-      }
-      // Si success, el revalidatePath actualiza la página automáticamente
-    });
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-3 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="field-label">Nombre del torneo *</label>
-          <input
-            name="name"
-            defaultValue={`Apertura ${currentYear}`}
-            required
-            className="field-input"
-            placeholder="Ej: Apertura 2026"
-          />
-        </div>
-        <div>
-          <label className="field-label">Año *</label>
-          <input
-            name="year"
-            type="number"
-            defaultValue={currentYear}
-            required
-            className="field-input"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="field-label">Nº de canchas *</label>
-          <input name="fields_count" type="number" defaultValue={4} min={1} max={10} required className="field-input" />
-        </div>
-        <div>
-          <label className="field-label">Jugadores por equipo *</label>
-          <input name="players_per_team" type="number" defaultValue={12} min={5} max={15} required className="field-input" />
-        </div>
-        <div>
-          <label className="field-label">Máx. equipos *</label>
-          <input name="max_teams" type="number" defaultValue={8} min={2} max={24} required className="field-input" />
-        </div>
-      </div>
-
-      <div>
-        <label className="field-label">
-          Horarios de partido <span className="text-slate-400 font-normal">(separados por coma)</span>
-        </label>
-        <input
-          name="time_slots"
-          defaultValue="10:00, 11:30, 13:00"
-          required
-          className="field-input font-mono"
-          placeholder="10:00, 11:30, 13:00"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="field-label">Fecha de inicio <span className="text-slate-400 font-normal">(opcional)</span></label>
-          <input name="start_date" type="date" className="field-input" />
-        </div>
-        <div>
-          <label className="field-label">Fecha de fin <span className="text-slate-400 font-normal">(opcional)</span></label>
-          <input name="end_date" type="date" className="field-input" />
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-3 pt-2">
-        <button type="button" onClick={onCancel} className="btn-secondary">
-          Cancelar
-        </button>
-        <button type="submit" disabled={isPending} className="btn-primary">
-          {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
-          Crear torneo en borrador
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Formulario: nueva fase
-// ─────────────────────────────────────────────────────────────────────────────
-
-function AddPhaseForm({
-  tournamentId,
-  nextOrder,
-  onDone,
-}: {
-  tournamentId: string;
-  nextOrder: number;
-  onDone: () => void;
-}) {
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [type, setType] = useState<'groups' | 'bracket'>('groups');
-
-  const phaseNames: Record<number, string> = {
-    1: 'Fase de Grupos',
-    2: 'Cuartos de Final',
-    3: 'Semifinal',
-    4: 'Final',
-  };
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    const fd = new FormData(e.currentTarget);
-    fd.set('tournamentId', tournamentId);
-    fd.set('order', nextOrder.toString());
-    startTransition(async () => {
-      const result = await createPhase(fd);
-      if (!result.success) {
-        setError(result.error);
-      } else {
-        onDone();
-      }
-    });
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      {error && (
-        <div className="text-red-700 text-xs bg-red-50 border border-red-200 p-2 flex items-center gap-1.5">
-          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="field-label">Nombre</label>
-          <input
-            name="name"
-            defaultValue={phaseNames[nextOrder] ?? `Fase ${nextOrder}`}
-            required
-            className="field-input"
-          />
-        </div>
-        <div>
-          <label className="field-label">Tipo</label>
-          <div className="flex gap-2">
-            {(['groups', 'bracket'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setType(t)}
-                className={`flex-1 py-2 text-xs font-semibold border transition-colors ${
-                  type === t
-                    ? 'bg-blue-900 text-white border-blue-900'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-700'
-                }`}
-              >
-                {t === 'groups' ? (
-                  <><Hash className="w-3 h-3 inline mr-1" />Grupos</>
-                ) : (
-                  <><Trophy className="w-3 h-3 inline mr-1" />Bracket</>
-                )}
-              </button>
             ))}
           </div>
-          <input type="hidden" name="type" value={type} />
-        </div>
+        )}
       </div>
 
-      <div className="flex justify-end gap-2">
-        <button type="button" onClick={onDone} className="btn-secondary text-xs">
-          Cancelar
-        </button>
-        <button type="submit" disabled={isPending} className="btn-primary text-xs">
-          {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />}
-          Agregar fase
-        </button>
-      </div>
-    </form>
+      {/* Modales */}
+      <PhaseEditor
+        open={creatingPhase}
+        onClose={() => setCreatingPhase(false)}
+        tournamentId={tournament.id}
+        suggestedOrder={phases.length + 1}
+      />
+      <PhaseEditor
+        open={!!editingPhase}
+        onClose={() => setEditingPhase(null)}
+        tournamentId={tournament.id}
+        phase={editingPhase}
+      />
+    </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Editor de horarios
-// ─────────────────────────────────────────────────────────────────────────────
-
-function TimeSlotsEditor({
-  tournamentId,
-  initial,
-  onDone,
+function TournamentHeader({
+  tournament, approvedPlayersCount, role,
 }: {
-  tournamentId: string;
-  initial: string[];
-  onDone: () => void;
+  tournament: Tournament;
+  approvedPlayersCount: number;
+  role: 'admin' | 'staff';
 }) {
-  const [slots, setSlots] = useState<string[]>(initial as string[]);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const changeStatus = (status: 'active' | 'finished' | 'cancelled') => {
+    setError(null);
+    const formData = new FormData();
+    formData.append('tournamentId', tournament.id);
+    formData.append('status', status);
+    startTransition(async () => {
+      const result = await setTournamentStatus(formData);
+      if (!result.success) setError(result.error);
+    });
+  };
+
+  const statusColor = {
+    draft: 'bg-slate-100 text-slate-700 border-slate-200',
+    active: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    finished: 'bg-blue-50 text-blue-800 border-blue-200',
+    cancelled: 'bg-red-50 text-red-800 border-red-200',
+  }[tournament.status];
+
+  return (
+    <div className="bg-white border border-slate-200 p-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="font-mono text-[10px] text-orange-600 tracking-widest font-semibold">
+              EDICIÓN {tournament.year}
+            </div>
+            <span className={`font-mono text-[10px] px-2 py-0.5 border font-semibold uppercase ${statusColor}`}>
+              {tournament.status}
+            </span>
+          </div>
+          <h1 className="font-serif text-3xl font-bold text-blue-900">{tournament.name}</h1>
+          <div className="flex items-center gap-4 text-xs text-slate-500 mt-2">
+            <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {approvedPlayersCount} aprobados</span>
+            <span>·</span>
+            <span>{tournament.max_teams} equipos máx.</span>
+            <span>·</span>
+            <span>{tournament.players_per_team} jugadores/equipo</span>
+          </div>
+        </div>
+
+        {role === 'admin' && (
+          <div className="flex gap-2">
+            {tournament.status === 'draft' && (
+              <button
+                onClick={() => changeStatus('active')}
+                disabled={isPending}
+                className="bg-emerald-600 text-white px-4 py-2 text-xs font-medium hover:bg-emerald-700 flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Play className="w-3.5 h-3.5" /> Activar torneo
+              </button>
+            )}
+            {tournament.status === 'active' && (
+              <button
+                onClick={() => changeStatus('finished')}
+                disabled={isPending}
+                className="bg-blue-900 text-white px-4 py-2 text-xs font-medium hover:bg-blue-800 flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Finalizar
+              </button>
+            )}
+            {(tournament.status === 'draft' || tournament.status === 'active') && (
+              <button
+                onClick={() => {
+                  if (confirm('¿Cancelar torneo? Esta acción es reversible.')) {
+                    changeStatus('cancelled');
+                  }
+                }}
+                disabled={isPending}
+                className="bg-white border border-slate-200 text-slate-700 px-4 py-2 text-xs hover:bg-slate-50 flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Ban className="w-3.5 h-3.5" /> Cancelar
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 text-xs p-3 flex items-start gap-2">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <div>{error}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FieldsPanel({ tournament }: { tournament: Tournament }) {
+  return (
+    <div className="bg-white border border-slate-200">
+      <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+        <MapPin className="w-4 h-4 text-blue-700" />
+        <h3 className="font-serif text-sm font-bold tracking-wide">Canchas ({tournament.fields_count})</h3>
+      </div>
+      <div className="p-5 grid grid-cols-2 gap-2">
+        {Array.from({ length: tournament.fields_count }, (_, i) => i + 1).map(n => (
+          <div key={n} className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-2.5">
+            <div className="w-8 h-8 bg-blue-900 text-white font-serif font-bold flex items-center justify-center text-sm">
+              {n}
+            </div>
+            <span className="text-xs font-medium">Cancha {n}</span>
+          </div>
+        ))}
+      </div>
+      <div className="px-5 pb-3 text-[10px] text-slate-500">
+        Para cambiar la cantidad, editá el torneo.
+      </div>
+    </div>
+  );
+}
+
+function TimeSlotsPanel({ tournament }: { tournament: Tournament }) {
+  const [slots, setSlots] = useState<string[]>(tournament.time_slots);
   const [newSlot, setNewSlot] = useState('');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function addSlot() {
-    if (!newSlot || slots.includes(newSlot)) return;
-    setSlots((prev) => [...prev, newSlot].sort());
-    setNewSlot('');
-  }
-
-  function removeSlot(slot: string) {
-    setSlots((prev) => prev.filter((s) => s !== slot));
-  }
-
-  function handleSave() {
+  const save = (nextSlots: string[]) => {
     setError(null);
     startTransition(async () => {
-      const result = await updateTimeSlots(tournamentId, slots);
+      const result = await updateTimeSlots(tournament.id, nextSlots);
       if (!result.success) {
         setError(result.error);
-      } else {
-        onDone();
+        setSlots(tournament.time_slots); // revertir
       }
     });
-  }
+  };
+
+  const addSlot = () => {
+    if (!newSlot.trim() || slots.includes(newSlot.trim())) return;
+    const next = [...slots, newSlot.trim()].sort();
+    setSlots(next);
+    setNewSlot('');
+    save(next);
+  };
+
+  const removeSlot = (s: string) => {
+    const next = slots.filter(x => x !== s);
+    setSlots(next);
+    save(next);
+  };
 
   return (
-    <div className="space-y-3">
-      {error && (
-        <div className="text-red-700 text-xs bg-red-50 border border-red-200 p-2">{error}</div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {slots.map((slot) => (
-          <div
-            key={slot}
-            className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1.5 text-sm font-mono"
-          >
-            {slot}
+    <div className="bg-white border border-slate-200">
+      <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+        <Clock className="w-4 h-4 text-orange-500" />
+        <h3 className="font-serif text-sm font-bold tracking-wide">Horarios ({slots.length})</h3>
+      </div>
+      <div className="p-5 space-y-2">
+        {slots.map(s => (
+          <div key={s} className="flex items-center justify-between bg-slate-50 border border-slate-100 p-2">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-orange-500" />
+              <span className="font-mono text-sm font-medium">{s}</span>
+            </div>
             <button
-              type="button"
-              onClick={() => removeSlot(slot)}
-              className="text-slate-400 hover:text-red-600 ml-1"
+              onClick={() => removeSlot(s)}
+              disabled={isPending}
+              className="text-slate-400 hover:text-red-600 disabled:opacity-50"
             >
-              <X className="w-3 h-3" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         ))}
-      </div>
-      <div className="flex gap-2">
-        <input
-          type="time"
-          value={newSlot}
-          onChange={(e) => setNewSlot(e.target.value)}
-          className="field-input font-mono w-32"
-        />
-        <button type="button" onClick={addSlot} className="btn-secondary text-xs flex items-center gap-1">
-          <Plus className="w-3.5 h-3.5" /> Agregar
-        </button>
-      </div>
-      <div className="flex gap-2 pt-1">
-        <button type="button" onClick={onDone} className="btn-secondary text-xs">Cancelar</button>
-        <button type="button" onClick={handleSave} disabled={isPending} className="btn-primary text-xs">
-          {isPending && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />}
-          Guardar horarios
-        </button>
+        <div className="flex items-center gap-1 pt-1">
+          <input
+            type="time"
+            value={newSlot}
+            onChange={e => setNewSlot(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addSlot(); }}
+            placeholder="hh:mm"
+            disabled={isPending}
+            className="flex-1 border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:border-blue-700"
+          />
+          <button
+            onClick={addSlot}
+            disabled={isPending || !newSlot.trim()}
+            className="bg-blue-900 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-800 flex items-center gap-1 disabled:opacity-50"
+          >
+            <Plus className="w-3 h-3" /> Agregar
+          </button>
+        </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-2 mt-2">{error}</div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Botón de cambio de estado
-// ─────────────────────────────────────────────────────────────────────────────
-
-function StatusActionButton({
-  tournamentId,
-  nextStatus,
-  label,
-  icon: Icon,
-  variant,
+function PhaseCard({
+  phase, onEdit, canEdit,
 }: {
-  tournamentId: string;
-  nextStatus: string;
-  label: string;
-  icon: React.ElementType;
-  variant: 'primary' | 'secondary';
+  phase: PhaseWithGroups;
+  onEdit: () => void;
+  canEdit: boolean;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+  const handleDelete = () => {
+    setError(null);
     startTransition(async () => {
-      await setTournamentStatus(fd);
+      const result = await deletePhase(phase.id);
+      if (!result.success) {
+        setError(result.error);
+        setConfirmDelete(false);
+      }
     });
-  }
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <input type="hidden" name="tournamentId" value={tournamentId} />
-      <input type="hidden" name="status" value={nextStatus} />
-      <button
-        type="submit"
-        disabled={isPending}
-        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors ${
-          variant === 'primary'
-            ? 'bg-orange-500 text-white hover:bg-orange-600'
-            : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-400'
-        }`}
-      >
-        {isPending ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Icon className="w-4 h-4" />
-        )}
-        {label}
-      </button>
-    </form>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Subcomponentes pequeños
-// ─────────────────────────────────────────────────────────────────────────────
-
-function PhaseCard({ phase, index }: { phase: Phase; index: number }) {
-  const statusColors: Record<string, string> = {
-    pending: 'border-slate-200 bg-white',
-    active: 'border-blue-700 bg-blue-50',
-    finished: 'border-emerald-300 bg-emerald-50',
   };
 
+  const statusBadge = {
+    pending: { class: 'bg-slate-100 text-slate-600 border-slate-200', label: 'PENDIENTE' },
+    active: { class: 'bg-orange-100 text-orange-700 border-orange-200', label: 'ACTIVA' },
+    finished: { class: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'FINALIZADA' },
+  }[phase.status];
+
   return (
-    <div className={`min-w-[180px] p-4 border ${statusColors[phase.status]}`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="font-mono text-[10px] text-slate-400 uppercase tracking-wider">
-          FASE {index + 1}
-        </span>
-        {phase.status === 'active' && (
-          <span className="text-[9px] font-bold bg-blue-700 text-white px-1.5 py-0.5">ACTIVA</span>
+    <div>
+      <div className="p-5 flex items-center gap-4">
+        <div className="w-10 h-10 bg-blue-900 text-white font-display text-base flex items-center justify-center flex-shrink-0">
+          {phase.order}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-mono text-[10px] text-slate-500 tracking-widest">
+              FASE {phase.order}
+            </span>
+            <span className={`font-mono text-[9px] px-1.5 py-0.5 border font-semibold uppercase ${statusBadge.class}`}>
+              {statusBadge.label}
+            </span>
+            <span className="font-mono text-[9px] bg-blue-50 text-blue-800 border border-blue-200 px-1.5 py-0.5 font-semibold">
+              {phase.type === 'groups' ? 'GRUPOS' : 'ELIMINATORIA'}
+            </span>
+          </div>
+          <div className="font-serif font-bold text-base">{phase.name}</div>
+          <div className="text-xs text-slate-500 mt-1">
+            {phase.type === 'groups' ? (
+              <span className="flex items-center gap-1">
+                <Hash className="w-3 h-3" />
+                {phase.groups.length} {phase.groups.length === 1 ? 'zona' : 'zonas'}
+              </span>
+            ) : (
+              <span>Llave eliminatoria</span>
+            )}
+          </div>
+        </div>
+
+        {canEdit && !confirmDelete && (
+          <div className="flex gap-1">
+            <button
+              onClick={onEdit}
+              disabled={isPending}
+              className="text-slate-500 hover:text-blue-700 p-2 disabled:opacity-50"
+              title="Editar"
+            >
+              <Edit3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              disabled={isPending}
+              className="text-slate-500 hover:text-red-600 p-2 disabled:opacity-50"
+              title="Borrar"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         )}
-        {phase.status === 'finished' && (
-          <span className="text-[9px] font-bold bg-emerald-600 text-white px-1.5 py-0.5">✓</span>
+
+        {confirmDelete && (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-2">
+            <span className="text-xs text-red-800 font-medium">¿Borrar la fase?</span>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              disabled={isPending}
+              className="text-xs px-2 py-1 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
+            >
+              No
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={isPending}
+              className="text-xs px-2 py-1 bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
+            >
+              Sí, borrar
+            </button>
+          </div>
         )}
       </div>
-      <div className="font-semibold text-sm text-slate-900 mb-1">{phase.name}</div>
-      <div className="flex items-center gap-1 text-xs text-slate-500">
-        {phase.type === 'groups' ? (
-          <><Hash className="w-3 h-3" /> Grupos</>
-        ) : (
-          <><Trophy className="w-3 h-3" /> Bracket</>
-        )}
-      </div>
+
+      {error && (
+        <div className="mx-5 mb-3 bg-red-50 border border-red-200 text-red-700 text-xs p-2 flex items-start gap-2">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <div>{error}</div>
+        </div>
+      )}
+
+      {/* Panel de zonas (sólo para fases de grupos) */}
+      {phase.type === 'groups' && (
+        <GroupsManager phaseId={phase.id} phaseName={phase.name} groups={phase.groups} />
+      )}
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    draft: { label: 'Borrador', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-    active: { label: 'Activo', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    finished: { label: 'Finalizado', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-    cancelled: { label: 'Cancelado', cls: 'bg-red-50 text-red-700 border-red-200' },
-  };
-  const { label, cls } = map[status] ?? map.draft;
-  return (
-    <span className={`text-xs font-bold px-2 py-0.5 border uppercase tracking-wider ${cls}`}>
-      {label}
-    </span>
-  );
-}
-
-function StatChip({
-  label,
-  value,
-  icon: Icon,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="text-center">
-      <div className={`font-serif text-2xl font-bold ${highlight ? 'text-orange-500' : 'text-slate-900'}`}>
-        {value}
-      </div>
-      <div className="flex items-center justify-center gap-1 text-[11px] text-slate-400 mt-0.5">
-        <Icon className="w-3 h-3" />
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }

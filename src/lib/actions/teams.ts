@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { TEAM_COLORS, VALID_COLORS } from '@/lib/constants';
+import { VALID_COLORS } from '@/lib/constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -456,6 +456,42 @@ export async function removeTeamMember(membershipId: string): Promise<ActionResu
   if (error) return { success: false, error: error.message };
 
   revalidatePath('/admin/teams');
+  return { success: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// saveDraw — bulk-assign players to teams from the draw page
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function saveDraw(
+  pairs: { playerId: string; teamId: string }[]
+): Promise<ActionResult> {
+  const { supabase } = await requireStaffOrAdmin();
+
+  if (!pairs.length) return { success: false, error: 'No hay jugadores para asignar.' };
+
+  const uuids = z.string().uuid();
+  const invalid = pairs.find(p => !uuids.safeParse(p.playerId).success || !uuids.safeParse(p.teamId).success);
+  if (invalid) return { success: false, error: 'Datos inválidos en el sorteo.' };
+
+  const inserts = pairs.map(p => ({
+    team_id: p.teamId,
+    player_id: p.playerId,
+    jersey_number: null,
+    is_captain: false,
+  }));
+
+  const { error } = await (supabase.from('team_memberships') as any).insert(inserts);
+
+  if (error) {
+    if (error.code === '23505') {
+      return { success: false, error: 'Algún jugador ya está asignado a un equipo.' };
+    }
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath('/admin/teams');
+  revalidatePath('/admin/draw');
   return { success: true };
 }
 

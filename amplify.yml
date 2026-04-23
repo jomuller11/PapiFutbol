@@ -6,7 +6,7 @@ frontend:
         - npm install --legacy-peer-deps
     build:
       commands:
-        - pnpm run build
+        - npm run build
   artifacts:
     baseDirectory: .next
     files:

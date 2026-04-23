@@ -122,7 +122,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
   const initials = `${p.first_name?.[0] ?? ''}${p.last_name?.[0] ?? ''}`;
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-8">
+    <div className="bg-slate-50 min-h-screen pb-8 md:max-w-3xl md:mx-auto">
       <MobileHeader title={displayName} backHref="/" />
 
       {/* Hero */}

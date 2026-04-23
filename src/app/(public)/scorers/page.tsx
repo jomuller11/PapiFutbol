@@ -78,6 +78,7 @@ export default async function ScorersPage() {
   return (
     <div className="bg-slate-50 min-h-screen pb-8">
       <MobileHeader title="Goleadores" backHref="/" />
+      <div className="md:max-w-4xl md:mx-auto">
 
       {/* Top 3 podio */}
       <div className="bg-gradient-to-b from-blue-900 to-blue-950 text-white px-4 pt-6 pb-8 relative overflow-hidden">
@@ -149,6 +150,7 @@ export default async function ScorersPage() {
             </Link>
           );
         })}
+      </div>
       </div>
     </div>
   );

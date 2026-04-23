@@ -41,13 +41,6 @@ export default async function StandingsPage() {
     );
   }
 
-  // Traer grupos
-  const { data: groups } = await supabase
-    .from('groups')
-    .select('id, name')
-    .eq('phases.tournament_id', (tournament as any).id) 
-    .order('name');
-
   // Traer todos los partidos jugados con equipos
   const { data: matches } = await supabase
     .from('matches')
@@ -146,6 +139,16 @@ export default async function StandingsPage() {
   return (
     <div className="bg-slate-50 min-h-screen pb-8">
       <MobileHeader title="Tabla de posiciones" backHref="/" />
+
+      {/* Desktop page header */}
+      <div className="hidden md:block bg-blue-900 px-8 py-8 relative overflow-hidden">
+        <div className="absolute inset-0 stadium-grid opacity-20" />
+        <div className="relative max-w-6xl mx-auto">
+          <div className="font-mono text-[10px] text-blue-300 uppercase tracking-widest mb-1">CLASIFICACIÓN · {(tournament as any).year}</div>
+          <div className="font-display text-4xl text-white">Tabla de posiciones</div>
+        </div>
+      </div>
+
       <StandingsClient rows={rows} groups={groupTabs} />
     </div>
   );

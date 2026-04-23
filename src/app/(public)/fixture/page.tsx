@@ -53,7 +53,16 @@ export default async function FixturePage() {
   return (
     <div className="bg-slate-50 min-h-screen pb-8">
       <MobileHeader title="Fixture" backHref="/" />
-      <FixtureClient matches={matches} />
+      <div className="hidden md:block bg-blue-900 px-8 py-8 relative overflow-hidden">
+        <div className="absolute inset-0 stadium-grid opacity-20" />
+        <div className="relative max-w-6xl mx-auto">
+          <div className="font-mono text-[10px] text-blue-300 uppercase tracking-widest mb-1">{(tournament as any).name} · {(tournament as any).year}</div>
+          <div className="font-display text-4xl text-white">Fixture</div>
+        </div>
+      </div>
+      <div className="md:max-w-6xl md:mx-auto">
+        <FixtureClient matches={matches} />
+      </div>
     </div>
   );
 }

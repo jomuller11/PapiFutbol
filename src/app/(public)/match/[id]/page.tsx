@@ -64,7 +64,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const at = (match as any).away_team as any;
 
   return (
-    <div className="bg-slate-50 min-h-screen">
+    <div className="bg-slate-50 min-h-screen md:max-w-3xl md:mx-auto">
       <MobileHeader title="Detalle del Partido" backHref="/fixture" />
 
       {/* Hero SCOREBOARD */}

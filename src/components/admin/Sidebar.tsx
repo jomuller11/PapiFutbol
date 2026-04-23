@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Trophy, Users, Shuffle, Shield, CalendarDays,
-  UserCheck, Settings, ShieldCheck, ChevronRight,
+  UserCheck, Settings, ShieldCheck, ChevronRight, GitMerge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +20,7 @@ const navItems = [
   { href: '/admin/draw', icon: Shuffle, label: 'Sorteo', adminOnly: true },
   { href: '/admin/teams', icon: Shield, label: 'Equipos' },
   { href: '/admin/fixture', icon: CalendarDays, label: 'Fixture' },
+  { href: '/admin/bracket', icon: GitMerge, label: 'Bracket', adminOnly: true },
   { href: '/admin/staff', icon: ShieldCheck, label: 'Equipo admin', adminOnly: true },
 ];
 

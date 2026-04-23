@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { advanceBracketWinner } from '@/lib/actions/brackets';
 
 export type ActionResult<T = undefined> =
   | { success: true; data?: T }
@@ -235,11 +236,21 @@ export async function saveMatchResult(formData: FormData): Promise<ActionResult>
 
   if (!parsed.success) return { success: false, error: 'Resultado inválido.' };
 
+  const { data: matchInfo } = await supabase
+    .from('matches')
+    .select('bracket_id')
+    .eq('id', matchId)
+    .single();
+
   const { error } = await (supabase.from('matches') as any)
     .update({ ...parsed.data, status: 'played' })
     .eq('id', matchId);
 
   if (error) return { success: false, error: error.message };
+
+  if ((matchInfo as any)?.bracket_id) {
+    await advanceBracketWinner(matchId);
+  }
 
   revalidatePath('/admin/fixture');
   revalidatePath(`/admin/fixture/${matchId}`);

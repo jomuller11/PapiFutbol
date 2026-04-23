@@ -97,6 +97,7 @@ export default async function FairPlayPage() {
   return (
     <div className="bg-slate-50 min-h-screen pb-8">
       <MobileHeader title="Fair Play" backHref="/more" />
+      <div className="md:max-w-4xl md:mx-auto">
 
       {/* Hero Stats */}
       <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900 text-white p-6 relative overflow-hidden">
@@ -166,6 +167,7 @@ export default async function FairPlayPage() {
             Mayor puntaje = mejor conducta. La tarjeta azul es exclusiva del torneo.
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

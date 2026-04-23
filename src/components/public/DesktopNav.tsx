@@ -2,68 +2,73 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Trophy, Calendar, BarChart3, Shield, Zap, Menu } from 'lucide-react';
+import { Trophy, Lock } from 'lucide-react';
 
 export function DesktopNav({ tournamentName, tournamentYear }: { tournamentName?: string, tournamentYear?: number }) {
   const pathname = usePathname();
 
   const nav = [
-    { href: '/fixture', label: 'Fixture', icon: Calendar },
-    { href: '/standings', label: 'Posiciones', icon: BarChart3 },
-    { href: '/scorers', label: 'Goleadores', icon: Zap },
-    { href: '/goalkeepers', label: 'Valla', icon: Shield },
-    { href: '/more', label: 'Más', icon: Menu },
+    { href: '/', label: 'Home' },
+    { href: '/fixture', label: 'Fixture' },
+    { href: '/standings', label: 'Posiciones' },
+    { href: '/scorers', label: 'Goleadores' },
+    { href: '/fair-play', label: 'Fair Play' },
+    { href: '/goalkeepers', label: 'Valla' },
+    { href: '/bracket', label: 'Bracket', locked: true },
   ];
 
   return (
-    <header className="hidden md:block bg-blue-900 text-white sticky top-0 z-40">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="flex items-center justify-between h-14">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-orange-500 flex items-center justify-center">
-              <Trophy className="w-4 h-4 text-white" strokeWidth={2.5} />
-            </div>
-            <div>
-              <span className="font-serif font-bold text-base leading-none">
-                Liga<span className="text-orange-400">.</span>9
-              </span>
-              {tournamentName && (
-                <div className="text-[10px] text-blue-300 font-mono leading-none mt-0.5">
-                  {tournamentName} · {tournamentYear}
-                </div>
-              )}
-            </div>
-          </Link>
+    <header className="hidden md:block bg-white border-b border-slate-200 sticky top-0 z-40">
+      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
 
-          {/* Acceso panel */}
-          <Link
-            href="/login"
-            className="text-xs text-blue-300 hover:text-white transition-colors font-medium"
-          >
-            Panel →
-          </Link>
-        </div>
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-3 flex-shrink-0">
+          <div className="w-9 h-9 bg-blue-900 flex items-center justify-center relative">
+            <Trophy className="w-5 h-5 text-white" strokeWidth={2.5} />
+            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500" />
+          </div>
+          <div>
+            <div className="font-serif text-xl font-black text-blue-900 leading-none">
+              Liga<span className="text-orange-500">.</span>9
+            </div>
+            {tournamentName && (
+              <div className="text-[10px] text-slate-400 font-mono leading-none mt-0.5">
+                {tournamentName} · {tournamentYear}
+              </div>
+            )}
+          </div>
+        </Link>
 
-        {/* Nav tabs */}
-        <nav className="flex -mb-px overflow-x-auto hide-scroll">
-          {nav.map(({ href, label, icon: Icon }) => {
-            const active = pathname?.startsWith(href) || (href === '/' && pathname === '/');
+        {/* Nav links + button */}
+        <div className="flex items-center gap-6">
+          {nav.map(({ href, label, locked }) => {
+            const active = href === '/' ? pathname === '/' : pathname?.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  active 
-                    ? 'text-white border-orange-400' 
-                    : 'text-blue-200 hover:text-white border-transparent hover:border-orange-400/50'
+                className={`text-sm font-medium flex items-center gap-1 transition-colors ${
+                  active
+                    ? 'text-orange-500 font-semibold'
+                    : locked
+                    ? 'text-slate-400 opacity-60'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                {locked && <Lock className="w-3 h-3" />}
                 {label}
               </Link>
             );
           })}
-        </nav>
+
+          <Link
+            href="/login"
+            className="bg-blue-900 text-white px-4 py-2 text-xs font-semibold hover:bg-blue-800 transition-colors"
+          >
+            Ingresar
+          </Link>
+        </div>
+
       </div>
     </header>
   );

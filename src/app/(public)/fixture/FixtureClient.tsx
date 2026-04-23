@@ -23,7 +23,7 @@ export function FixtureClient({ matches }: { matches: any[] }) {
   return (
     <div>
       {/* Filtros */}
-      <div className="bg-white border-b border-slate-200 p-3 space-y-2 sticky top-14 z-20 md:top-[56px]">
+      <div className="bg-white border-b border-slate-200 p-3 space-y-2 sticky top-14 z-20 md:top-[96px]">
         {/* Fechas */}
         <div className="flex gap-1 overflow-x-auto hide-scroll -mx-3 px-3 pb-1">
           {rounds.map(r => (
@@ -67,10 +67,10 @@ export function FixtureClient({ matches }: { matches: any[] }) {
                 </div>
                 <div className="flex-1 h-px bg-slate-200" />
               </div>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {matchesInTime.map(m => (
-                  m.status === 'played' ? 
-                    <MatchRow key={m.id} match={m} showScore /> : 
+                  m.status === 'played' ?
+                    <MatchRow key={m.id} match={m} showScore /> :
                     <MatchUpcomingRow key={m.id} match={m} />
                 ))}
               </div>

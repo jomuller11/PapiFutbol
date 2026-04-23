@@ -75,7 +75,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
   const gc = played.reduce((s: number, m: any) => s + (m.home_team?.id === id ? m.away_score : m.home_score), 0);
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-8">
+    <div className="bg-slate-50 min-h-screen pb-8 md:max-w-4xl md:mx-auto">
       <MobileHeader title={t.short_name} backHref="/" />
 
       {/* Hero */}

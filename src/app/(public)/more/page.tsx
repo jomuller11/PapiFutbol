@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Shield, Info, Phone, ChevronRight, User } from 'lucide-react';
+import { Shield, Info, Phone, ChevronRight, User, GitMerge } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = {
@@ -15,7 +15,7 @@ export default async function MorePage() {
     .maybeSingle();
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-8">
+    <div className="bg-slate-50 min-h-screen pb-8 md:max-w-2xl md:mx-auto">
       <div className="bg-blue-900 text-white pt-10 pb-6 px-4 relative overflow-hidden">
         <div className="absolute inset-0 stadium-grid opacity-30" />
         <div className="relative">
@@ -28,7 +28,18 @@ export default async function MorePage() {
 
       <div className="p-4 space-y-3">
         <div className="font-mono text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-1 px-1">Torneo</div>
-        
+
+        <Link href="/bracket" className="w-full bg-white border border-slate-200 p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors shadow-sm">
+          <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <GitMerge className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="font-semibold text-slate-900">Bracket eliminatorio</div>
+            <div className="text-xs text-slate-500 mt-0.5">Cuadro de eliminación directa</div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-300" />
+        </Link>
+
         <Link href="/goalkeepers" className="w-full bg-white border border-slate-200 p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors shadow-sm">
           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
             <Shield className="w-5 h-5 text-blue-600" />

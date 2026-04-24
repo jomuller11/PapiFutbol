@@ -203,13 +203,32 @@ export async function createPhase(formData: FormData): Promise<ActionResult> {
 
   const { tournamentId, name, type, order } = parsed.data;
 
-  const { error } = await (supabase.from('phases') as any).insert({
-    tournament_id: tournamentId,
-    name,
-    type,
-    order,
-    status: 'pending',
-  });
+  const cupNamesRaw = formData
+    .getAll('cup_names')
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  if (type === 'bracket') {
+    if (cupNamesRaw.length === 0) {
+      return { success: false, error: 'Definí al menos una copa para la fase eliminatoria.' };
+    }
+
+    const invalidCup = cupNamesRaw.find((cupName) => cupName.length < 2 || cupName.length > 60);
+    if (invalidCup) {
+      return { success: false, error: 'Cada copa debe tener entre 2 y 60 caracteres.' };
+    }
+  }
+
+  const { data: phase, error } = await (supabase.from('phases') as any)
+    .insert({
+      tournament_id: tournamentId,
+      name,
+      type,
+      order,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
 
   if (error) {
     if (error.code === '23505') {
@@ -218,7 +237,24 @@ export async function createPhase(formData: FormData): Promise<ActionResult> {
     return { success: false, error: error.message };
   }
 
+  if (type === 'bracket') {
+    const { error: cupsError } = await (supabase.from('brackets') as any).insert(
+      cupNamesRaw.map((cupName) => ({
+        phase_id: (phase as any).id,
+        name: cupName,
+        teams_count: 8,
+      }))
+    );
+
+    if (cupsError) {
+      await (supabase.from('phases') as any).delete().eq('id', (phase as any).id);
+      return { success: false, error: cupsError.message };
+    }
+  }
+
   revalidatePath('/admin/tournament');
+  revalidatePath('/admin/bracket');
+  revalidatePath('/bracket');
   return { success: true };
 }
 
@@ -299,6 +335,25 @@ export async function deletePhase(phaseId: string): Promise<ActionResult> {
       success: false,
       error: `No podés borrar esta fase: ya tiene ${playedCount} partido(s) jugado(s).`,
     };
+  }
+
+  const { data: phase } = await supabase
+    .from('phases')
+    .select('type')
+    .eq('id', phaseId)
+    .single();
+
+  if ((phase as any)?.type === 'bracket') {
+    const { data: brackets } = await supabase
+      .from('brackets')
+      .select('id')
+      .eq('phase_id', phaseId);
+
+    const bracketIds = ((brackets as any[]) ?? []).map((bracket: any) => bracket.id as string);
+    if (bracketIds.length > 0) {
+      await (supabase.from('matches') as any).delete().in('bracket_id', bracketIds);
+      await (supabase.from('brackets') as any).delete().in('id', bracketIds);
+    }
   }
 
   const { error } = await (supabase.from('phases') as any).delete().eq('id', phaseId);

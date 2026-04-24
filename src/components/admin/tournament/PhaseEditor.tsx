@@ -28,6 +28,8 @@ export function PhaseEditor({ open, onClose, tournamentId, phase, suggestedOrder
   const [name, setName] = useState(phase?.name ?? '');
   const [type, setType] = useState<'groups' | 'bracket'>(phase?.type ?? 'groups');
   const [order, setOrder] = useState<number>(phase?.order ?? suggestedOrder);
+  const [cupCount, setCupCount] = useState<number>(3);
+  const [cupNames, setCupNames] = useState<string[]>(['Copa de Oro', 'Copa de Plata', 'Copa de Bronce']);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -52,6 +54,12 @@ export function PhaseEditor({ open, onClose, tournamentId, phase, suggestedOrder
     formData.append('type', type);
     formData.append('order', order.toString());
 
+    if (!isEdit && type === 'bracket') {
+      cupNames.slice(0, cupCount).forEach((cupName) => {
+        formData.append('cup_names', cupName.trim());
+      });
+    }
+
     if (isEdit && phase) {
       formData.append('phaseId', phase.id);
     } else {
@@ -73,6 +81,8 @@ export function PhaseEditor({ open, onClose, tournamentId, phase, suggestedOrder
       setName('');
       setType('groups');
       setOrder(suggestedOrder);
+      setCupCount(3);
+      setCupNames(['Copa de Oro', 'Copa de Plata', 'Copa de Bronce']);
       onClose();
     });
   };
@@ -82,9 +92,20 @@ export function PhaseEditor({ open, onClose, tournamentId, phase, suggestedOrder
     setName('');
     setType('groups');
     setOrder(suggestedOrder);
+    setCupCount(3);
+    setCupNames(['Copa de Oro', 'Copa de Plata', 'Copa de Bronce']);
     setError(null);
     setFieldErrors({});
     onClose();
+  };
+
+  const updateCupName = (index: number, value: string) => {
+    setCupNames((prev) => {
+      const next = [...prev];
+      while (next.length < Math.max(cupCount, index + 1)) next.push('');
+      next[index] = value;
+      return next;
+    });
   };
 
   return (
@@ -216,6 +237,56 @@ export function PhaseEditor({ open, onClose, tournamentId, phase, suggestedOrder
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
               <div>
                 Las zonas se agregan después, desde la misma fase una vez creada.
+              </div>
+            </div>
+          )}
+
+          {type === 'bracket' && !isEdit && (
+            <div className="space-y-3 border border-slate-200 p-4 bg-slate-50">
+              <div>
+                <label className="font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold block mb-2">
+                  Copas de la fase
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => setCupCount(count)}
+                      disabled={isPending}
+                      className={`px-3 py-1.5 text-xs font-medium border transition-colors ${
+                        cupCount === count
+                          ? 'bg-blue-900 text-white border-blue-900'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {count} {count === 1 ? 'copa' : 'copas'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {Array.from({ length: cupCount }, (_, index) => (
+                  <div key={index}>
+                    <label className="font-mono text-[10px] text-slate-500 uppercase tracking-widest font-semibold block mb-1">
+                      Copa {index + 1}
+                    </label>
+                    <input
+                      type="text"
+                      value={cupNames[index] ?? ''}
+                      onChange={(e) => updateCupName(index, e.target.value)}
+                      placeholder={`Nombre de la copa ${index + 1}`}
+                      disabled={isPending}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-700 bg-white"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="text-[10px] text-slate-500 flex items-start gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span>Después de crear la fase vas a poder cargar los cruces manualmente para cada copa.</span>
               </div>
             </div>
           )}

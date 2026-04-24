@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { advanceBracketWinner } from '@/lib/actions/brackets';
+import { updateMatchPenalties } from '@/lib/utils/match-notes';
 
 export type ActionResult<T = undefined> =
   | { success: true; data?: T }
@@ -229,21 +230,50 @@ export async function saveMatchResult(formData: FormData): Promise<ActionResult>
   const parsed = z.object({
     home_score: z.coerce.number().int().min(0).max(99),
     away_score: z.coerce.number().int().min(0).max(99),
+    penalty_home: z.union([z.coerce.number().int().min(0).max(99), z.literal('')]).optional(),
+    penalty_away: z.union([z.coerce.number().int().min(0).max(99), z.literal('')]).optional(),
   }).safeParse({
     home_score: formData.get('home_score'),
     away_score: formData.get('away_score'),
+    penalty_home: formData.get('penalty_home'),
+    penalty_away: formData.get('penalty_away'),
   });
 
   if (!parsed.success) return { success: false, error: 'Resultado inválido.' };
 
   const { data: matchInfo } = await supabase
     .from('matches')
-    .select('bracket_id')
+    .select('bracket_id, notes')
     .eq('id', matchId)
     .single();
 
+  const penaltyHome =
+    parsed.data.penalty_home === '' || parsed.data.penalty_home === undefined
+      ? null
+      : parsed.data.penalty_home;
+  const penaltyAway =
+    parsed.data.penalty_away === '' || parsed.data.penalty_away === undefined
+      ? null
+      : parsed.data.penalty_away;
+
+  if ((penaltyHome === null) !== (penaltyAway === null)) {
+    return { success: false, error: 'CargÃ¡ ambos resultados de penales.' };
+  }
+
+  if ((penaltyHome !== null || penaltyAway !== null) && parsed.data.home_score !== parsed.data.away_score) {
+    return { success: false, error: 'Solo podÃ©s cargar penales si el partido terminÃ³ empatado.' };
+  }
+
   const { error } = await (supabase.from('matches') as any)
-    .update({ ...parsed.data, status: 'played' })
+    .update({
+      home_score: parsed.data.home_score,
+      away_score: parsed.data.away_score,
+      notes: updateMatchPenalties(
+        (matchInfo as any)?.notes ?? null,
+        penaltyHome !== null && penaltyAway !== null ? { home: penaltyHome, away: penaltyAway } : null
+      ),
+      status: 'played',
+    })
     .eq('id', matchId);
 
   if (error) return { success: false, error: error.message };
@@ -273,8 +303,19 @@ export async function reopenMatch(matchId: string): Promise<ActionResult> {
     return { success: false, error: 'ID inválido.' };
   }
 
+  const { data: matchInfo } = await supabase
+    .from('matches')
+    .select('notes')
+    .eq('id', matchId)
+    .single();
+
   const { error } = await (supabase.from('matches') as any)
-    .update({ status: 'scheduled', home_score: null, away_score: null })
+    .update({
+      status: 'scheduled',
+      home_score: null,
+      away_score: null,
+      notes: updateMatchPenalties((matchInfo as any)?.notes ?? null, null),
+    })
     .eq('id', matchId);
 
   if (error) return { success: false, error: error.message };

@@ -14,8 +14,7 @@ type Props = {
 export function TeamsPageClient({ data }: Props) {
   const [search, setSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState<'all' | 'unassigned' | string>('all');
-  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
-  const editingTeam = data.teams.find(t => t.id === editingTeamId) ?? null;
+  const [editingTeam, setEditingTeam] = useState<TeamWithRoster | null>(null);
   const [creatingTeam, setCreatingTeam] = useState(false);
 
   const filtered = useMemo(() => {
@@ -125,7 +124,7 @@ export function TeamsPageClient({ data }: Props) {
             <TeamCard
               key={team.id}
               team={team}
-              onEdit={() => setEditingTeamId(team.id)}
+              onEdit={() => setEditingTeam(team)}
             />
           ))}
         </div>
@@ -143,8 +142,8 @@ export function TeamsPageClient({ data }: Props) {
         groups={data.groups}
       />
       <TeamEditor
-        open={!!editingTeamId}
-        onClose={() => setEditingTeamId(null)}
+        open={!!editingTeam}
+        onClose={() => setEditingTeam(null)}
         tournamentId={data.tournamentId!}
         groups={data.groups}
         team={editingTeam}
@@ -191,6 +190,7 @@ function TeamCard({ team, onEdit }: { team: TeamWithRoster; onEdit: () => void }
         </div>
 
         <button
+          type="button"
           onClick={onEdit}
           className="w-8 h-8 bg-white/10 hover:bg-white/20 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
           title="Editar"
@@ -273,6 +273,7 @@ function TeamCard({ team, onEdit }: { team: TeamWithRoster; onEdit: () => void }
 
         {/* CTA */}
         <button
+          type="button"
           onClick={onEdit}
           className="w-full bg-slate-50 border border-slate-200 text-slate-700 py-2 text-xs font-medium hover:bg-slate-100 flex items-center justify-center gap-1.5"
         >

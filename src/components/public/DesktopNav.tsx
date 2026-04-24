@@ -13,6 +13,7 @@ export function DesktopNav({ tournamentName, tournamentYear }: { tournamentName?
     { href: '/standings', label: 'Posiciones' },
     { href: '/scorers', label: 'Goleadores' },
     { href: '/fair-play', label: 'Fair Play' },
+    { href: '/sanctions', label: 'Sanciones' },
     { href: '/goalkeepers', label: 'Valla' },
     { href: '/bracket', label: 'Bracket', locked: true },
   ];

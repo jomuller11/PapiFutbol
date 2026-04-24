@@ -43,6 +43,7 @@ export type MatchDetailData = {
   status: string;
   home_score: number | null;
   away_score: number | null;
+  notes: string | null;
   home_team: TeamOption;
   away_team: TeamOption;
   observer_team: TeamOption | null;
@@ -64,7 +65,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const { data: rawMatch } = await supabase
     .from('matches')
     .select(`
-      id, round_number, match_date, match_time, field_number, status, home_score, away_score,
+      id, round_number, match_date, match_time, field_number, status, home_score, away_score, notes,
       tournament_id, home_team_id, away_team_id,
       home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
       away_team:teams!matches_away_team_id_fkey(id, name, short_name, color),
@@ -141,6 +142,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     status: m.status,
     home_score: m.home_score,
     away_score: m.away_score,
+    notes: m.notes ?? null,
     home_team: m.home_team,
     away_team: m.away_team,
     observer_team: m.observer_team ?? null,

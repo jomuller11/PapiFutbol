@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { Shield, Zap } from 'lucide-react';
+import { getPenaltyScore, getVisibleMatchNotes } from '@/lib/utils/match-notes';
 
 export function MatchDetailClient({ match, goals, cards }: { match: any, goals: any[], cards: any[] }) {
   const [activeTab, setActiveTab] = useState('events');
 
   const ht = match.home_team;
   const at = match.away_team;
+  const penalties = getPenaltyScore(match.notes);
+  const visibleNotes = getVisibleMatchNotes(match.notes);
   
   const events = [...goals, ...cards].sort((a, b) => a.minute - b.minute);
 
@@ -74,7 +77,7 @@ export function MatchDetailClient({ match, goals, cards }: { match: any, goals: 
             )}
           </div>
           
-          {(match.observer_team?.name || match.notes) && (
+          {(match.observer_team?.name || visibleNotes || penalties) && (
             <div className="bg-white border border-slate-200 p-4 mt-6">
               <div className="font-display text-lg mb-2 text-slate-800">OBSERVACIONES</div>
               {match.observer_team?.name && (
@@ -82,9 +85,14 @@ export function MatchDetailClient({ match, goals, cards }: { match: any, goals: 
                   <span className="font-semibold">Veedor:</span> {match.observer_team.name}
                 </div>
               )}
-              {match.notes && (
+              {penalties && (
+                <div className="text-sm text-slate-600 mb-2">
+                  <span className="font-semibold">Penales:</span> {ht?.name} {penalties.home} - {penalties.away} {at?.name}
+                </div>
+              )}
+              {visibleNotes && (
                 <div className="text-sm text-slate-600">
-                  <span className="font-semibold">Notas:</span> {match.notes}
+                  <span className="font-semibold">Notas:</span> {visibleNotes}
                 </div>
               )}
             </div>
@@ -96,6 +104,9 @@ export function MatchDetailClient({ match, goals, cards }: { match: any, goals: 
         <div className="p-4">
           <div className="bg-white border border-slate-200 p-4">
             <StatRow label="Goles" valA={match.home_score ?? 0} valB={match.away_score ?? 0} colorA={ht.color} colorB={at.color} />
+            {penalties && (
+              <StatRow label="Penales" valA={penalties.home} valB={penalties.away} colorA={ht.color} colorB={at.color} />
+            )}
             <StatRow 
               label="Tarjetas Amarillas" 
               valA={cards.filter(c => c.type === 'yellow' && c.team_id === ht.id).length} 

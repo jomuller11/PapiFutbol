@@ -131,6 +131,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
       }
 
       onClose();
+      window.location.reload();
     });
   };
 
@@ -145,6 +146,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
         return;
       }
       onClose();
+      window.location.reload();
     });
   };
 

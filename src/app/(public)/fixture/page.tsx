@@ -27,17 +27,26 @@ export default async function FixturePage() {
     );
   }
 
+  const { data: phases } = await supabase
+    .from('phases')
+    .select('id, name, type, order')
+    .eq('tournament_id', (tournament as any).id)
+    .order('order', { ascending: true });
+
   // Partidos con equipos
   const { data: matches } = await supabase
     .from('matches')
     .select(`
-      id, match_date, match_time, field_number, round_number, group_id,
-      status, home_score, away_score,
+      id, match_date, match_time, field_number, round_number, group_id, bracket_id,
+      status, home_score, away_score, notes,
+      phase:phases!matches_phase_id_fkey(id, name, type),
       home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
       away_team:teams!matches_away_team_id_fkey(id, name, short_name, color),
-      group:groups!matches_group_id_fkey(name)
+      group:groups!matches_group_id_fkey(name),
+      bracket:brackets!matches_bracket_id_fkey(name)
     `)
     .eq('tournament_id', (tournament as any).id)
+    .order('phase_id', { ascending: true })
     .order('match_date', { ascending: true })
     .order('match_time', { ascending: true });
 
@@ -61,7 +70,7 @@ export default async function FixturePage() {
         </div>
       </div>
       <div className="md:max-w-6xl md:mx-auto">
-        <FixtureClient matches={matches} />
+        <FixtureClient matches={matches as any[]} phases={((phases as any[]) ?? []).map((phase) => ({ id: phase.id, name: phase.name, type: phase.type }))} />
       </div>
     </div>
   );
@@ -75,4 +84,3 @@ function EmptyState({ message }: { message: string }) {
     </div>
   );
 }
-

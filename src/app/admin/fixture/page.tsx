@@ -11,6 +11,7 @@ export type MatchRow = {
   status: string;
   home_score: number | null;
   away_score: number | null;
+  notes: string | null;
   home_team: { id: string; name: string; short_name: string; color: string } | null;
   away_team: { id: string; name: string; short_name: string; color: string } | null;
   observer_team: { name: string; short_name: string } | null;
@@ -68,7 +69,7 @@ export default async function AdminFixturePage() {
   const { data: rawMatches } = await supabase
     .from('matches')
     .select(`
-      id, round_number, match_date, match_time, field_number, status, home_score, away_score,
+      id, round_number, match_date, match_time, field_number, status, home_score, away_score, notes,
       home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
       away_team:teams!matches_away_team_id_fkey(id, name, short_name, color),
       observer_team:teams!matches_observer_team_id_fkey(id, name, short_name),
@@ -89,6 +90,7 @@ export default async function AdminFixturePage() {
     status: m.status,
     home_score: m.home_score,
     away_score: m.away_score,
+    notes: m.notes ?? null,
     home_team: m.home_team ?? null,
     away_team: m.away_team ?? null,
     observer_team: m.observer_team ?? null,

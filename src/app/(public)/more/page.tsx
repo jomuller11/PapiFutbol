@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Shield, Info, Phone, ChevronRight, User, GitMerge } from 'lucide-react';
+import { Shield, Info, Phone, ChevronRight, User, GitMerge, ShieldAlert } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata = {
@@ -58,6 +58,17 @@ export default async function MorePage() {
           <div className="flex-1 text-left">
             <div className="font-semibold text-slate-900">Fair Play</div>
             <div className="text-xs text-slate-500 mt-0.5">Tarjetas y tabla de conducta</div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-300" />
+        </Link>
+
+        <Link href="/sanctions" className="w-full bg-white border border-slate-200 p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors shadow-sm">
+          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <ShieldAlert className="w-5 h-5 text-red-600" />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="font-semibold text-slate-900">Sanciones</div>
+            <div className="text-xs text-slate-500 mt-0.5">Ranking de jugadores amonestados y expulsados</div>
           </div>
           <ChevronRight className="w-5 h-5 text-slate-300" />
         </Link>

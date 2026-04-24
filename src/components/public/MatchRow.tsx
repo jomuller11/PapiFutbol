@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { Clock, MapPin, ChevronRight } from 'lucide-react';
+import { formatDisplayScore, getMatchWinnerSide } from '@/lib/utils/match-notes';
 
 export function MatchRow({ match, showScore }: { match: any; showScore?: boolean }) {
   const ht = match.home_team;
   const at = match.away_team;
-  const homeWon = match.home_score > match.away_score;
-  const awayWon = match.away_score > match.home_score;
+  const winnerSide = getMatchWinnerSide(match.home_score, match.away_score, match.notes);
+  const homeWon = winnerSide === 'home';
+  const awayWon = winnerSide === 'away';
   
   return (
     <Link href={`/match/${match.id}`} className="block w-full bg-white border border-slate-200 p-3 hover:bg-slate-50 transition-colors">
@@ -22,7 +24,7 @@ export function MatchRow({ match, showScore }: { match: any; showScore?: boolean
             <span className={`text-sm truncate ${homeWon ? 'font-bold' : 'font-medium text-slate-600'}`}>{ht?.name}</span>
           </div>
           {showScore ? (
-            <span className={`font-display text-xl ${homeWon ? 'text-blue-900' : 'text-slate-400'}`}>{match.home_score}</span>
+            <span className={`font-display text-xl ${homeWon ? 'text-blue-900' : 'text-slate-400'}`}>{formatDisplayScore(match.home_score, match.notes, 'home')}</span>
           ) : (
             <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1 py-0.5">vs</span>
           )}
@@ -33,7 +35,7 @@ export function MatchRow({ match, showScore }: { match: any; showScore?: boolean
             <span className={`text-sm truncate ${awayWon ? 'font-bold' : 'font-medium text-slate-600'}`}>{at?.name}</span>
           </div>
           {showScore ? (
-            <span className={`font-display text-xl ${awayWon ? 'text-blue-900' : 'text-slate-400'}`}>{match.away_score}</span>
+            <span className={`font-display text-xl ${awayWon ? 'text-blue-900' : 'text-slate-400'}`}>{formatDisplayScore(match.away_score, match.notes, 'away')}</span>
           ) : null}
         </div>
       </div>

@@ -33,7 +33,11 @@ export function RosterPanel({ teamId, members, availablePlayers }: Props) {
     startTransition(async () => {
       const result = await addTeamMember(fd);
       setActiveId(null);
-      if (!result.success) setAddError(result.error);
+      if (!result.success) {
+        setAddError(result.error);
+        return;
+      }
+      window.location.reload();
     });
   };
 
@@ -43,7 +47,11 @@ export function RosterPanel({ teamId, members, availablePlayers }: Props) {
     startTransition(async () => {
       const result = await removeTeamMember(membershipId);
       setActiveId(null);
-      if (!result.success) setActionError(result.error);
+      if (!result.success) {
+        setActionError(result.error);
+        return;
+      }
+      window.location.reload();
     });
   };
 
@@ -56,7 +64,11 @@ export function RosterPanel({ teamId, members, availablePlayers }: Props) {
     startTransition(async () => {
       const result = await updateTeamMember(fd);
       setActiveId(null);
-      if (!result.success) setActionError(result.error);
+      if (!result.success) {
+        setActionError(result.error);
+        return;
+      }
+      window.location.reload();
     });
   };
 

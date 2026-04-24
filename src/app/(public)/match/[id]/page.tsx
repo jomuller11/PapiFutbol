@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { MatchDetailClient } from './MatchDetailClient';
+import { formatDisplayScore } from '@/lib/utils/match-notes';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -103,9 +104,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             <div className="px-4 flex flex-col items-center justify-center">
               {isPlayed ? (
                 <div className="font-display text-6xl leading-none flex items-center gap-2 text-white">
-                  <span>{(match as any).home_score}</span>
+                  <span>{formatDisplayScore((match as any).home_score, (match as any).notes, 'home')}</span>
                   <span className="text-blue-500/50 mb-2">-</span>
-                  <span>{(match as any).away_score}</span>
+                  <span>{formatDisplayScore((match as any).away_score, (match as any).notes, 'away')}</span>
                 </div>
               ) : (
                 <div className="font-display text-3xl text-orange-400">
@@ -137,4 +138,3 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     </div>
   );
 }
-

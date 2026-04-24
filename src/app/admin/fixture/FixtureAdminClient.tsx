@@ -7,6 +7,7 @@ import {
   AlertCircle, Check, Clock, RefreshCw, Plus,
 } from 'lucide-react';
 import { generateGroupFixture } from '@/lib/actions/matches';
+import { getMatchWinnerSide } from '@/lib/utils/match-notes';
 import type { FixturePageData, MatchRow, GroupWithTeams } from './page';
 
 type Props = { data: FixturePageData };
@@ -234,8 +235,9 @@ export function FixtureAdminClient({ data }: Props) {
 
 function MatchCard({ match }: { match: MatchRow }) {
   const played = match.status === 'played';
-  const homeWon = played && (match.home_score ?? 0) > (match.away_score ?? 0);
-  const awayWon = played && (match.away_score ?? 0) > (match.home_score ?? 0);
+  const winnerSide = played ? getMatchWinnerSide(match.home_score, match.away_score, match.notes) : null;
+  const homeWon = winnerSide === 'home';
+  const awayWon = winnerSide === 'away';
 
   return (
     <Link

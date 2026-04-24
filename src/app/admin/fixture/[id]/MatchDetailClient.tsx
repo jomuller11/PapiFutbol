@@ -10,12 +10,14 @@ import {
   saveMatchResult, reopenMatch, updateMatchDetails,
   addMatchGoal, removeMatchGoal, addMatchCard, removeMatchCard,
 } from '@/lib/actions/matches';
+import { formatDisplayScore, getMatchWinnerSide, getPenaltyScore } from '@/lib/utils/match-notes';
 import type { MatchDetailData, RosterPlayer, GoalRow, CardRow } from './page';
 
 export function MatchDetailClient({ match }: { match: MatchDetailData }) {
   const played = match.status === 'played';
-  const homeWon = played && (match.home_score ?? 0) > (match.away_score ?? 0);
-  const awayWon = played && (match.away_score ?? 0) > (match.home_score ?? 0);
+  const winnerSide = played ? getMatchWinnerSide(match.home_score, match.away_score, match.notes) : null;
+  const homeWon = winnerSide === 'home';
+  const awayWon = winnerSide === 'away';
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -66,9 +68,9 @@ export function MatchDetailClient({ match }: { match: MatchDetailData }) {
             <div className="text-center">
               {played ? (
                 <div className="font-display text-5xl font-bold">
-                  <span className={homeWon ? '' : 'opacity-60'}>{match.home_score}</span>
+                  <span className={homeWon ? '' : 'opacity-60'}>{formatDisplayScore(match.home_score, match.notes, 'home')}</span>
                   <span className="opacity-40 mx-2">–</span>
-                  <span className={awayWon ? '' : 'opacity-60'}>{match.away_score}</span>
+                  <span className={awayWon ? '' : 'opacity-60'}>{formatDisplayScore(match.away_score, match.notes, 'away')}</span>
                 </div>
               ) : (
                 <div className="font-display text-4xl opacity-40">— —</div>
@@ -110,8 +112,12 @@ export function MatchDetailClient({ match }: { match: MatchDetailData }) {
 function ResultSection({ match, played }: { match: MatchDetailData; played: boolean }) {
   const [homeScore, setHomeScore] = useState(match.home_score?.toString() ?? '');
   const [awayScore, setAwayScore] = useState(match.away_score?.toString() ?? '');
+  const initialPenalties = getPenaltyScore(match.notes);
+  const [penaltyHome, setPenaltyHome] = useState(initialPenalties?.home?.toString() ?? '');
+  const [penaltyAway, setPenaltyAway] = useState(initialPenalties?.away?.toString() ?? '');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const canLoadPenalties = homeScore !== '' && awayScore !== '' && homeScore === awayScore;
 
   const handleSave = () => {
     setError(null);
@@ -119,6 +125,8 @@ function ResultSection({ match, played }: { match: MatchDetailData; played: bool
     fd.append('match_id', match.id);
     fd.append('home_score', homeScore);
     fd.append('away_score', awayScore);
+    if (penaltyHome !== '') fd.append('penalty_home', penaltyHome);
+    if (penaltyAway !== '') fd.append('penalty_away', penaltyAway);
     startTransition(async () => {
       const result = await saveMatchResult(fd);
       if (!result.success) setError(result.error);
@@ -178,20 +186,58 @@ function ResultSection({ match, played }: { match: MatchDetailData; played: bool
           </div>
         </div>
 
+        {(canLoadPenalties || penaltyHome !== '' || penaltyAway !== '') && (
+          <div className="mb-4 border border-slate-200 bg-slate-50 p-4">
+            <div className="font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold mb-3">
+              Penales
+            </div>
+            <div className="flex items-center gap-4 justify-center">
+              <div className="text-right">
+                <div className="text-xs text-slate-500 mb-1.5 font-medium">{match.home_team.short_name}</div>
+                <input
+                  type="number"
+                  min={0}
+                  max={99}
+                  value={penaltyHome}
+                  onChange={e => setPenaltyHome(e.target.value)}
+                  disabled={isPending || !canLoadPenalties}
+                  className="w-20 h-12 border border-slate-200 text-center font-display text-2xl text-slate-800 focus:outline-none focus:border-blue-700 disabled:bg-slate-100 disabled:text-slate-400"
+                />
+              </div>
+              <span className="font-display text-xl text-slate-300 mt-5">â€”</span>
+              <div className="text-left">
+                <div className="text-xs text-slate-500 mb-1.5 font-medium">{match.away_team.short_name}</div>
+                <input
+                  type="number"
+                  min={0}
+                  max={99}
+                  value={penaltyAway}
+                  onChange={e => setPenaltyAway(e.target.value)}
+                  disabled={isPending || !canLoadPenalties}
+                  className="w-20 h-12 border border-slate-200 text-center font-display text-2xl text-slate-800 focus:outline-none focus:border-blue-700 disabled:bg-slate-100 disabled:text-slate-400"
+                />
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-2 text-center">
+              CargÃ¡ la definiciÃ³n por penales sÃ³lo si el partido terminÃ³ empatado.
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-2.5 flex items-start gap-2 mb-3">
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> {error}
           </div>
         )}
 
-        {!played && (
+        {(!played || canLoadPenalties || penaltyHome !== '' || penaltyAway !== '') && (
           <button
             onClick={handleSave}
             disabled={isPending || homeScore === '' || awayScore === ''}
             className="w-full bg-emerald-600 text-white py-2.5 text-sm font-medium hover:bg-emerald-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check className="w-4 h-4" />
-            {isPending ? 'Guardando...' : 'Marcar como jugado'}
+            {isPending ? 'Guardando...' : played ? 'Guardar resultado' : 'Marcar como jugado'}
           </button>
         )}
       </div>

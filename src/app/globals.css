@@ -46,9 +46,9 @@
 }
 
 @layer utilities {
-  .font-display { font-family: 'Anton', sans-serif; letter-spacing: 0.01em; }
-  .font-serif { font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.02em; }
-  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-display, .liga-display { font-family: 'Anton', sans-serif; letter-spacing: 0.01em; }
+  .font-serif, .liga-serif { font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.02em; }
+  .font-mono, .liga-mono { font-family: 'JetBrains Mono', monospace; }
   
   .stripe-bg {
     background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 12px);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createManualBracketMatches, deleteBracket, resolveBracketTieWinner } from '@/lib/actions/brackets';
 import { roundName } from '@/lib/utils/bracket';
@@ -275,6 +276,17 @@ function TieCard({ tie }: { tie: TieGroup }) {
 
       <div className="border-t border-slate-100 bg-slate-50 py-2">
         <TotalLine value={aggregateLabel} />
+        <div className="flex flex-wrap gap-1 px-3 pb-2">
+          {legColumns.map((column) => (
+            <Link
+              key={`${column.key}-edit`}
+              href={`/admin/fixture/${column.key}?returnTo=${encodeURIComponent('/admin/bracket')}`}
+              className="rounded border border-slate-200 bg-white px-2 py-1 text-[9px] font-medium uppercase tracking-wide text-blue-700 hover:border-blue-300 hover:bg-blue-50"
+            >
+              Editar {column.label}
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );

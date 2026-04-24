@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Save, Target, Square, Eye, Calendar,
@@ -14,19 +15,23 @@ import { formatDisplayScore, getMatchWinnerSide, getPenaltyScore } from '@/lib/u
 import type { MatchDetailData, RosterPlayer, GoalRow, CardRow } from './page';
 
 export function MatchDetailClient({ match }: { match: MatchDetailData }) {
-  const played = match.status === 'played';
+  const router = useRouter();
+  const hasResult = match.home_score !== null && match.away_score !== null;
+  const played = match.status === 'played' || hasResult;
   const winnerSide = played ? getMatchWinnerSide(match.home_score, match.away_score, match.notes) : null;
   const homeWon = winnerSide === 'home';
   const awayWon = winnerSide === 'away';
+  const returnHref = match.return_to ?? '/admin/fixture';
+  const returnLabel = match.return_to ? 'Volver al bracket' : 'Volver al fixture';
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       {/* Back */}
       <Link
-        href="/admin/fixture"
+        href={returnHref}
         className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-900 font-medium transition-colors"
       >
-        <ArrowLeft className="w-3.5 h-3.5" /> Volver al fixture
+        <ArrowLeft className="w-3.5 h-3.5" /> {returnLabel}
       </Link>
 
       {/* Match header */}
@@ -110,6 +115,7 @@ export function MatchDetailClient({ match }: { match: MatchDetailData }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ResultSection({ match, played }: { match: MatchDetailData; played: boolean }) {
+  const router = useRouter();
   const [homeScore, setHomeScore] = useState(match.home_score?.toString() ?? '');
   const [awayScore, setAwayScore] = useState(match.away_score?.toString() ?? '');
   const initialPenalties = getPenaltyScore(match.notes);
@@ -119,25 +125,48 @@ function ResultSection({ match, played }: { match: MatchDetailData; played: bool
   const [isPending, startTransition] = useTransition();
   const canLoadPenalties = homeScore !== '' && awayScore !== '' && homeScore === awayScore;
 
+  useEffect(() => {
+    if (!canLoadPenalties && (penaltyHome !== '' || penaltyAway !== '')) {
+      setPenaltyHome('');
+      setPenaltyAway('');
+    }
+  }, [canLoadPenalties, penaltyHome, penaltyAway]);
+
   const handleSave = () => {
     setError(null);
     const fd = new FormData();
     fd.append('match_id', match.id);
     fd.append('home_score', homeScore);
     fd.append('away_score', awayScore);
-    if (penaltyHome !== '') fd.append('penalty_home', penaltyHome);
-    if (penaltyAway !== '') fd.append('penalty_away', penaltyAway);
+    if (canLoadPenalties && penaltyHome !== '') fd.append('penalty_home', penaltyHome);
+    if (canLoadPenalties && penaltyAway !== '') fd.append('penalty_away', penaltyAway);
     startTransition(async () => {
-      const result = await saveMatchResult(fd);
-      if (!result.success) setError(result.error);
+      try {
+        const result = await saveMatchResult(fd);
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
+        if (match.return_to) router.push(match.return_to);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error inesperado al guardar el resultado.');
+      }
     });
   };
 
   const handleReopen = () => {
     setError(null);
     startTransition(async () => {
-      const result = await reopenMatch(match.id);
-      if (!result.success) setError(result.error);
+      try {
+        const result = await reopenMatch(match.id);
+        if (!result.success) {
+          setError(result.error);
+          return;
+        }
+        if (match.return_to) router.push(match.return_to);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error inesperado al reabrir el partido.');
+      }
     });
   };
 
@@ -149,6 +178,7 @@ function ResultSection({ match, played }: { match: MatchDetailData; played: bool
         </div>
         {played && (
           <button
+            type="button"
             onClick={handleReopen}
             disabled={isPending}
             className="text-xs text-amber-600 hover:underline font-medium flex items-center gap-1 disabled:opacity-50"
@@ -167,7 +197,7 @@ function ResultSection({ match, played }: { match: MatchDetailData; played: bool
               max={99}
               value={homeScore}
               onChange={e => setHomeScore(e.target.value)}
-              disabled={isPending || played}
+              disabled={isPending}
               className="w-20 h-16 border-2 border-slate-200 text-center font-display text-3xl text-blue-900 focus:outline-none focus:border-blue-700 disabled:bg-slate-50 disabled:text-slate-400"
             />
           </div>
@@ -180,7 +210,7 @@ function ResultSection({ match, played }: { match: MatchDetailData; played: bool
               max={99}
               value={awayScore}
               onChange={e => setAwayScore(e.target.value)}
-              disabled={isPending || played}
+              disabled={isPending}
               className="w-20 h-16 border-2 border-slate-200 text-center font-display text-3xl text-blue-900 focus:outline-none focus:border-blue-700 disabled:bg-slate-50 disabled:text-slate-400"
             />
           </div>
@@ -230,16 +260,15 @@ function ResultSection({ match, played }: { match: MatchDetailData; played: bool
           </div>
         )}
 
-        {(!played || canLoadPenalties || penaltyHome !== '' || penaltyAway !== '') && (
-          <button
-            onClick={handleSave}
-            disabled={isPending || homeScore === '' || awayScore === ''}
-            className="w-full bg-emerald-600 text-white py-2.5 text-sm font-medium hover:bg-emerald-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Check className="w-4 h-4" />
-            {isPending ? 'Guardando...' : played ? 'Guardar resultado' : 'Marcar como jugado'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isPending || homeScore === '' || awayScore === ''}
+          className="w-full bg-emerald-600 text-white py-2.5 text-sm font-medium hover:bg-emerald-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Check className="w-4 h-4" />
+          {isPending ? 'Guardando...' : played ? 'Actualizar resultado' : 'Marcar como jugado'}
+        </button>
       </div>
     </div>
   );
@@ -272,19 +301,28 @@ function GoalsSection({ match }: { match: MatchDetailData }) {
     if (minute) fd.append('minute', minute);
     fd.append('is_own_goal', ownGoal.toString());
     startTransition(async () => {
-      const result = await addMatchGoal(fd);
-      if (!result.success) { setError(result.error); return; }
-      setPlayerId('');
-      setMinute('');
-      setOwnGoal(false);
-      setShowForm(false);
+      try {
+        const result = await addMatchGoal(fd);
+        if (!result.success) { setError(result.error); return; }
+        setPlayerId('');
+        setMinute('');
+        setOwnGoal(false);
+        setShowForm(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error inesperado al guardar el gol.');
+      }
     });
   };
 
   const handleRemove = (goalId: string) => {
     setActiveId(goalId);
     startTransition(async () => {
-      await removeMatchGoal(goalId);
+      try {
+        const result = await removeMatchGoal(goalId);
+        if (!result.success) setError(result.error);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error inesperado al borrar el gol.');
+      }
       setActiveId(null);
     });
   };
@@ -302,6 +340,7 @@ function GoalsSection({ match }: { match: MatchDetailData }) {
           </span>
         </div>
         <button
+          type="button"
           onClick={() => setShowForm(!showForm)}
           disabled={isPending}
           className="text-xs text-blue-700 hover:underline font-medium flex items-center gap-1"
@@ -318,6 +357,7 @@ function GoalsSection({ match }: { match: MatchDetailData }) {
               <div className="flex gap-1">
                 {(['home', 'away'] as const).map(side => (
                   <button
+                    type="button"
                     key={side}
                     onClick={() => { setTeamSide(side); setPlayerId(''); }}
                     className={`flex-1 py-1.5 text-xs font-medium border transition-colors ${
@@ -370,8 +410,9 @@ function GoalsSection({ match }: { match: MatchDetailData }) {
             </div>
           )}
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs border border-slate-200 bg-white hover:bg-slate-50">Cancelar</button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs border border-slate-200 bg-white hover:bg-slate-50">Cancelar</button>
             <button
+              type="button"
               onClick={handleAdd}
               disabled={!playerId || isPending}
               className="px-3 py-1.5 text-xs bg-blue-900 text-white font-medium hover:bg-blue-800 disabled:opacity-50"
@@ -402,6 +443,7 @@ function GoalsSection({ match }: { match: MatchDetailData }) {
               <span className="text-slate-400 font-mono text-[10px]">{isHome ? match.home_team.short_name : match.away_team.short_name}</span>
               {g.minute && <span className="text-slate-400 font-mono text-[10px]">{g.minute}'</span>}
               <button
+                type="button"
                 onClick={() => handleRemove(g.id)}
                 disabled={isPending}
                 className="w-5 h-5 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 disabled:opacity-40"
@@ -449,18 +491,27 @@ function CardsSection({ match }: { match: MatchDetailData }) {
     fd.append('type', cardType);
     if (minute) fd.append('minute', minute);
     startTransition(async () => {
-      const result = await addMatchCard(fd);
-      if (!result.success) { setError(result.error); return; }
-      setPlayerId('');
-      setMinute('');
-      setShowForm(false);
+      try {
+        const result = await addMatchCard(fd);
+        if (!result.success) { setError(result.error); return; }
+        setPlayerId('');
+        setMinute('');
+        setShowForm(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error inesperado al guardar la tarjeta.');
+      }
     });
   };
 
   const handleRemove = (cardId: string) => {
     setActiveId(cardId);
     startTransition(async () => {
-      await removeMatchCard(cardId);
+      try {
+        const result = await removeMatchCard(cardId);
+        if (!result.success) setError(result.error);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error inesperado al borrar la tarjeta.');
+      }
       setActiveId(null);
     });
   };
@@ -484,6 +535,7 @@ function CardsSection({ match }: { match: MatchDetailData }) {
           </span>
         </div>
         <button
+          type="button"
           onClick={() => setShowForm(!showForm)}
           disabled={isPending}
           className="text-xs text-blue-700 hover:underline font-medium flex items-center gap-1"
@@ -500,6 +552,7 @@ function CardsSection({ match }: { match: MatchDetailData }) {
               <div className="flex gap-1">
                 {(['home', 'away'] as const).map(side => (
                   <button
+                    type="button"
                     key={side}
                     onClick={() => { setTeamSide(side); setPlayerId(''); }}
                     className={`flex-1 py-1.5 text-xs font-medium border transition-colors ${
@@ -568,8 +621,9 @@ function CardsSection({ match }: { match: MatchDetailData }) {
             </div>
           )}
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs border border-slate-200 bg-white hover:bg-slate-50">Cancelar</button>
+            <button type="button" onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs border border-slate-200 bg-white hover:bg-slate-50">Cancelar</button>
             <button
+              type="button"
               onClick={handleAdd}
               disabled={!playerId || isPending}
               className="px-3 py-1.5 text-xs bg-blue-900 text-white font-medium hover:bg-blue-800 disabled:opacity-50"
@@ -597,10 +651,11 @@ function CardsSection({ match }: { match: MatchDetailData }) {
                 {c.team?.id === match.home_team.id ? match.home_team.short_name : match.away_team.short_name}
               </span>
               {c.minute && <span className="text-slate-400 font-mono text-[10px]">{c.minute}'</span>}
-              <button
-                onClick={() => handleRemove(c.id)}
-                disabled={isPending}
-                className="w-5 h-5 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 disabled:opacity-40"
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(c.id)}
+                    disabled={isPending}
+                    className="w-5 h-5 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 disabled:opacity-40"
               >
                 <Trash2 className="w-3 h-3" />
               </button>

@@ -54,10 +54,42 @@ export type MatchDetailData = {
   home_roster: RosterPlayer[];
   away_roster: RosterPlayer[];
   all_teams: TeamOption[];
+  return_to: string | null;
 };
 
-export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
+function deriveScoreFromGoals(
+  goals: GoalRow[],
+  homeTeamId: string,
+  awayTeamId: string
+) {
+  let homeScore = 0;
+  let awayScore = 0;
+
+  for (const goal of goals) {
+    const creditedTeamId = goal.is_own_goal
+      ? goal.team?.id === homeTeamId
+        ? awayTeamId
+        : goal.team?.id === awayTeamId
+          ? homeTeamId
+          : null
+      : goal.team?.id ?? null;
+
+    if (creditedTeamId === homeTeamId) homeScore += 1;
+    if (creditedTeamId === awayTeamId) awayScore += 1;
+  }
+
+  return { homeScore, awayScore };
+}
+
+export default async function MatchDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
   const { id } = await params;
+  const { returnTo } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -133,6 +165,12 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         jersey_number: r.jersey_number ?? null,
       }));
 
+  const goals = ((goalsRes.data as any[]) ?? []) as GoalRow[];
+  const derivedScore =
+    m.home_score === null || m.away_score === null
+      ? deriveScoreFromGoals(goals, m.home_team_id, m.away_team_id)
+      : null;
+
   const matchData: MatchDetailData = {
     id: m.id,
     round_number: m.round_number,
@@ -140,19 +178,20 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     match_time: m.match_time,
     field_number: m.field_number,
     status: m.status,
-    home_score: m.home_score,
-    away_score: m.away_score,
+    home_score: m.home_score ?? derivedScore?.homeScore ?? null,
+    away_score: m.away_score ?? derivedScore?.awayScore ?? null,
     notes: m.notes ?? null,
     home_team: m.home_team,
     away_team: m.away_team,
     observer_team: m.observer_team ?? null,
     group_name: m.group?.name ?? null,
     phase_name: m.phase?.name ?? null,
-    goals: ((goalsRes.data as any[]) ?? []) as GoalRow[],
+    goals,
     cards: ((cardsRes.data as any[]) ?? []) as CardRow[],
     home_roster: toRoster(homeRosterRes.data as any[] ?? []),
     away_roster: toRoster(awayRosterRes.data as any[] ?? []),
     all_teams: ((allTeamsRes.data as any[]) ?? []) as TeamOption[],
+    return_to: typeof returnTo === 'string' && returnTo.startsWith('/admin/') ? returnTo : null,
   };
 
   return <MatchDetailClient match={matchData} />;

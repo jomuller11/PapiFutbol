@@ -32,6 +32,66 @@ async function requireStaffOrAdmin() {
   return { supabase, userId: user.id, role };
 }
 
+async function syncMatchScoreFromGoals(matchId: string) {
+  const { supabase } = await requireStaffOrAdmin();
+
+  const { data: match } = await supabase
+    .from('matches')
+    .select('id, bracket_id, home_team_id, away_team_id, home_score, away_score, status')
+    .eq('id', matchId)
+    .single();
+
+  if (!match) return;
+
+  const { data: goals } = await supabase
+    .from('match_goals')
+    .select('team_id, is_own_goal')
+    .eq('match_id', matchId);
+
+  let homeScore = 0;
+  let awayScore = 0;
+
+  for (const goal of (goals as any[]) ?? []) {
+    const creditedTeamId = goal.is_own_goal
+      ? goal.team_id === (match as any).home_team_id
+        ? (match as any).away_team_id
+        : goal.team_id === (match as any).away_team_id
+          ? (match as any).home_team_id
+          : null
+      : goal.team_id;
+
+    if (creditedTeamId === (match as any).home_team_id) homeScore += 1;
+    if (creditedTeamId === (match as any).away_team_id) awayScore += 1;
+  }
+
+  const hasGoals = (((goals as any[]) ?? []).length ?? 0) > 0;
+  const shouldPersistScore =
+    hasGoals || (match as any).status === 'played' || (match as any).home_score !== null || (match as any).away_score !== null;
+
+  if (!shouldPersistScore) return;
+
+  await (supabase.from('matches') as any)
+    .update({
+      home_score: homeScore,
+      away_score: awayScore,
+      status: hasGoals || (match as any).status === 'played' ? 'played' : (match as any).status,
+    })
+    .eq('id', matchId);
+
+  if ((match as any).bracket_id) {
+    await advanceBracketWinner(matchId);
+  }
+
+  revalidatePath('/admin/bracket');
+  revalidatePath('/bracket');
+  revalidatePath('/admin/fixture');
+  revalidatePath(`/admin/fixture/${matchId}`);
+  revalidatePath('/fixture');
+  revalidatePath('/');
+  revalidatePath('/standings');
+  revalidatePath('/scorers');
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Round-robin helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -282,6 +342,8 @@ export async function saveMatchResult(formData: FormData): Promise<ActionResult>
     await advanceBracketWinner(matchId);
   }
 
+  revalidatePath('/admin/bracket');
+  revalidatePath('/bracket');
   revalidatePath('/admin/fixture');
   revalidatePath(`/admin/fixture/${matchId}`);
   revalidatePath('/fixture');
@@ -378,6 +440,8 @@ export async function addMatchGoal(formData: FormData): Promise<ActionResult> {
 
   if (error) return { success: false, error: error.message };
 
+  await syncMatchScoreFromGoals(match_id);
+
   revalidatePath(`/admin/fixture/${match_id}`);
   revalidatePath('/scorers');
   revalidatePath('/');
@@ -405,7 +469,10 @@ export async function removeMatchGoal(goalId: string): Promise<ActionResult> {
   const { error } = await (supabase.from('match_goals') as any).delete().eq('id', goalId);
   if (error) return { success: false, error: error.message };
 
-  if (goal) revalidatePath(`/admin/fixture/${(goal as any).match_id}`);
+  if (goal) {
+    await syncMatchScoreFromGoals((goal as any).match_id);
+    revalidatePath(`/admin/fixture/${(goal as any).match_id}`);
+  }
   revalidatePath('/scorers');
   revalidatePath('/');
   return { success: true };

@@ -37,6 +37,12 @@ export type BracketData = {
   rounds: BracketMatch[][];
 };
 
+type MatchGoalSummary = {
+  match_id: string;
+  team_id: string;
+  is_own_goal: boolean;
+};
+
 // ─── Guards ───────────────────────────────────────────────────────────────────
 
 async function requireStaffOrAdmin() {
@@ -87,6 +93,37 @@ function normalizeBracketMatch(m: any): BracketMatch {
     ...m,
     home_team: Array.isArray(m.home_team) ? m.home_team[0] ?? null : m.home_team ?? null,
     away_team: Array.isArray(m.away_team) ? m.away_team[0] ?? null : m.away_team ?? null,
+  };
+}
+
+function withDerivedBracketScore(match: BracketMatch, goalsByMatchId: Map<string, MatchGoalSummary[]>) {
+  const goals = goalsByMatchId.get(match.id) ?? [];
+  if (goals.length === 0 || !match.home_team_id || !match.away_team_id) return match;
+
+  let homeScore = 0;
+  let awayScore = 0;
+
+  for (const goal of goals) {
+    const creditedTeamId: string | null = goal.is_own_goal
+      ? goal.team_id === match.home_team_id
+        ? match.away_team_id
+        : goal.team_id === match.away_team_id
+          ? match.home_team_id
+          : null
+      : goal.team_id;
+
+    if (creditedTeamId === match.home_team_id) homeScore += 1;
+    if (creditedTeamId === match.away_team_id) awayScore += 1;
+  }
+
+  return {
+    ...match,
+    home_score: match.home_score ?? homeScore,
+    away_score: match.away_score ?? awayScore,
+    status:
+      match.status === 'played' || goals.length > 0
+        ? 'played'
+        : match.status,
   };
 }
 
@@ -632,13 +669,28 @@ export async function getBracketData(bracketId: string): Promise<BracketData | n
     .order('round_number', { ascending: true })
     .order('bracket_position', { ascending: true });
 
+  const matchIds = ((matches as any[]) ?? []).map((match: any) => match.id as string);
+  const { data: goalRows } = matchIds.length
+    ? await supabase
+        .from('match_goals')
+        .select('match_id, team_id, is_own_goal')
+        .in('match_id', matchIds)
+    : { data: [] as any[] };
+
+  const goalsByMatchId = new Map<string, MatchGoalSummary[]>();
+  for (const goal of ((goalRows as any[]) ?? []) as MatchGoalSummary[]) {
+    if (!goalsByMatchId.has(goal.match_id)) goalsByMatchId.set(goal.match_id, []);
+    goalsByMatchId.get(goal.match_id)!.push(goal);
+  }
+
   const totalRounds = Math.log2((bracket as any).teams_count);
   const rounds: BracketMatch[][] = [];
 
   for (let r = 1; r <= totalRounds; r++) {
     const roundMatches = ((matches as any[]) ?? [])
       .filter((m: any) => m.round_number === r)
-      .map(normalizeBracketMatch);
+      .map(normalizeBracketMatch)
+      .map((match) => withDerivedBracketScore(match, goalsByMatchId));
     rounds.push(roundMatches);
   }
 
@@ -677,6 +729,19 @@ export async function getBracketsData(phaseId: string): Promise<BracketData[]> {
     .order('bracket_position', { ascending: true });
 
   const allMatches = (matches as any[]) ?? [];
+  const matchIds = allMatches.map((match: any) => match.id as string);
+  const { data: goalRows } = matchIds.length
+    ? await supabase
+        .from('match_goals')
+        .select('match_id, team_id, is_own_goal')
+        .in('match_id', matchIds)
+    : { data: [] as any[] };
+
+  const goalsByMatchId = new Map<string, MatchGoalSummary[]>();
+  for (const goal of ((goalRows as any[]) ?? []) as MatchGoalSummary[]) {
+    if (!goalsByMatchId.has(goal.match_id)) goalsByMatchId.set(goal.match_id, []);
+    goalsByMatchId.get(goal.match_id)!.push(goal);
+  }
 
   return (brackets as any[]).map((bracket: any) => {
     const totalRounds = Math.log2(bracket.teams_count);
@@ -687,6 +752,7 @@ export async function getBracketsData(phaseId: string): Promise<BracketData[]> {
         allMatches
           .filter((match) => match.bracket_id === bracket.id && match.round_number === round)
           .map(normalizeBracketMatch)
+          .map((match) => withDerivedBracketScore(match, goalsByMatchId))
       );
     }
 

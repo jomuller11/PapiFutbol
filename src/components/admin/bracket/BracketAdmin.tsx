@@ -154,7 +154,7 @@ function buildTieLegColumns(tie: TieGroup, summary: TieSummary): TieLegColumn[] 
     if (!played) {
       return {
         key: match.id,
-        label: getLegLabel(match.notes) ?? `P${index + 1}`,
+        label: getLegLabel(match.notes) === 'Ida' ? 'I' : getLegLabel(match.notes) === 'Vuelta' ? 'V' : `P${index + 1}`,
         meta: compactMatchMeta(match),
         homeValue: null,
         awayValue: null,
@@ -166,7 +166,7 @@ function buildTieLegColumns(tie: TieGroup, summary: TieSummary): TieLegColumn[] 
 
     return {
       key: match.id,
-      label: getLegLabel(match.notes) ?? `P${index + 1}`,
+      label: getLegLabel(match.notes) === 'Ida' ? 'I' : getLegLabel(match.notes) === 'Vuelta' ? 'V' : `P${index + 1}`,
       meta: compactMatchMeta(match),
       homeValue: summaryHomeIsLocal
         ? formatDisplayScore(match.home_score, match.notes, 'home')
@@ -192,9 +192,9 @@ function TeamLine({
   if (!team) {
     return (
       <div className="grid items-center gap-x-2 px-3 py-2" style={{ gridTemplateColumns: columnTemplate }}>
-        <span className="text-sm italic text-slate-400">Por definir</span>
+        <span className="text-[10px] italic text-slate-400">Por definir</span>
         {Array.from({ length: Math.max(values.length, 1) }).map((_, index) => (
-          <span key={`pending-${index}`} className="text-right text-sm text-slate-300">
+          <span key={`pending-${index}`} className="text-right text-[10px] text-slate-300">
             -
           </span>
         ))}
@@ -211,14 +211,14 @@ function TeamLine({
     >
       <div className="flex min-w-0 items-center gap-1.5">
         <span className={`h-3 w-3 rounded-full flex-shrink-0 ${bg}`} />
-        <span className={`truncate text-sm ${isWinner ? 'font-semibold text-green-800' : 'font-medium text-slate-800'}`}>
+        <span className={`truncate text-[10px] ${isWinner ? 'font-semibold text-green-800' : 'font-medium text-slate-800'}`}>
           {team.name}
         </span>
       </div>
       {values.map((value, index) => (
         <span
           key={`${team.short_name}-${index}`}
-          className={`text-right text-sm tabular-nums ${isWinner ? 'font-bold text-green-700' : 'font-medium text-slate-500'}`}
+          className={`text-right text-[10px] tabular-nums ${isWinner ? 'font-bold text-green-700' : 'font-medium text-slate-500'}`}
         >
           {value ?? '-'}
         </span>
@@ -229,11 +229,8 @@ function TeamLine({
 
 function TotalLine({ value }: { value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2">
-      <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-        Total
-      </span>
-      <span className="text-right text-sm font-medium tabular-nums text-slate-500">{value}</span>
+    <div className="px-3 py-2 text-[8px] font-semibold uppercase tracking-wide text-slate-500">
+      Total: <span className="text-[10px] font-bold tabular-nums text-slate-700">{value}</span>
     </div>
   );
 }
@@ -251,12 +248,11 @@ function TieCard({ tie }: { tie: TieGroup }) {
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <div className="border-b border-slate-100 bg-slate-50/80 px-3 py-2">
         <div className="grid items-center gap-x-2" style={{ gridTemplateColumns: headerTemplate }}>
-          <span className="text-[10px] font-mono text-slate-400">P{tie.position}</span>
+          <span className="text-[7px] font-mono text-slate-400">P{tie.position}</span>
           {legColumns.map((column) => (
             <span
               key={column.key}
-              className="rounded-full bg-blue-100 px-1.5 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-blue-700"
-              title={column.meta ?? undefined}
+              className="text-right text-[6px] font-semibold uppercase tracking-wide text-slate-500"
             >
               {column.label}
             </span>
@@ -279,13 +275,6 @@ function TieCard({ tie }: { tie: TieGroup }) {
 
       <div className="border-t border-slate-100 bg-slate-50 py-2">
         <TotalLine value={aggregateLabel} />
-        {legColumns.some((column) => column.meta) ? (
-          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 px-3 text-[10px] text-slate-400">
-            {legColumns.map((column) =>
-              column.meta ? <span key={`${column.key}-meta`}>{column.label}: {column.meta}</span> : null
-            )}
-          </div>
-        ) : null}
       </div>
     </div>
   );

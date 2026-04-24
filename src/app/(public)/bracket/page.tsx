@@ -148,7 +148,7 @@ function buildTieLegColumns(tie: TieGroup, summary: TieSummary): TieLegColumn[] 
     if (!played) {
       return {
         key: match.id,
-        label: getLegLabel(match.notes) ?? `P${index + 1}`,
+        label: getLegLabel(match.notes) === 'Ida' ? 'I' : getLegLabel(match.notes) === 'Vuelta' ? 'V' : `P${index + 1}`,
         meta: compactMatchMeta(match),
         homeValue: null,
         awayValue: null,
@@ -160,7 +160,7 @@ function buildTieLegColumns(tie: TieGroup, summary: TieSummary): TieLegColumn[] 
 
     return {
       key: match.id,
-      label: getLegLabel(match.notes) ?? `P${index + 1}`,
+      label: getLegLabel(match.notes) === 'Ida' ? 'I' : getLegLabel(match.notes) === 'Vuelta' ? 'V' : `P${index + 1}`,
       meta: compactMatchMeta(match),
       homeValue: summaryHomeIsLocal
         ? formatDisplayScore(match.home_score, match.notes, 'home')
@@ -188,9 +188,9 @@ function TeamLine({
   if (!team) {
     return (
       <div className="grid items-center gap-x-2 px-3 py-2" style={{ gridTemplateColumns: columnTemplate }}>
-        <span className="text-xs italic text-slate-400">Por definir</span>
+        <span className="text-[11px] italic text-slate-400">Por definir</span>
         {Array.from({ length: Math.max(values.length, 1) }).map((_, index) => (
-          <span key={`pending-${index}`} className="text-right text-xs text-slate-300">
+          <span key={`pending-${index}`} className="text-right text-[11px] text-slate-300">
             -
           </span>
         ))}
@@ -207,13 +207,13 @@ function TeamLine({
     >
       <div className="flex min-w-0 items-center gap-2">
         <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${bg}`} />
-        <span className={`truncate text-xs ${isWinner ? 'font-bold text-green-800' : 'text-slate-700'}`}>{team.name}</span>
+        <span className={`truncate text-[11px] ${isWinner ? 'font-bold text-green-800' : 'text-slate-700'}`}>{team.name}</span>
       </div>
 
       {values.map((value, index) => (
         <span
           key={`${team.name}-${index}`}
-          className={`text-right text-xs font-bold tabular-nums ${isWinner ? 'text-green-700' : 'text-slate-500'}`}
+          className={`text-right text-[11px] font-bold tabular-nums ${isWinner ? 'text-green-700' : 'text-slate-500'}`}
         >
           {value ?? '-'}
         </span>
@@ -222,13 +222,10 @@ function TeamLine({
   );
 }
 
-function TotalLine({ label, value }: { label: string; value: string }) {
+function TotalLine({ value }: { value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-3 py-2">
-      <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-        {label}
-      </span>
-      <span className="text-right text-xs font-bold tabular-nums text-slate-500">{value}</span>
+    <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+      Total: <span className="font-bold tabular-nums text-slate-700">{value}</span>
     </div>
   );
 }
@@ -250,8 +247,7 @@ function TieCard({ tie, compact = false }: { tie: TieGroup; compact?: boolean })
           {legColumns.map((column) => (
             <span
               key={column.key}
-              className="rounded-full bg-blue-100 px-1.5 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-blue-700"
-              title={column.meta ?? undefined}
+              className="text-right text-[9px] font-semibold uppercase tracking-wide text-slate-500"
             >
               {column.label}
             </span>
@@ -275,15 +271,7 @@ function TieCard({ tie, compact = false }: { tie: TieGroup; compact?: boolean })
       </div>
 
       <div className="border-t border-slate-100 bg-slate-50 py-2">
-        <TotalLine label="Total" value={aggregateLabel} />
-
-        {!compact && legColumns.some((column) => column.meta) ? (
-          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400">
-            {legColumns.map((column) =>
-              column.meta ? <span key={`${column.key}-meta`}>{column.label}: {column.meta}</span> : null
-            )}
-          </div>
-        ) : null}
+        <TotalLine value={aggregateLabel} />
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { MatchDetailClient } from './MatchDetailClient';
+import { getTeamColorBackground } from '@/lib/constants';
 import { formatDisplayScore } from '@/lib/utils/match-notes';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -31,8 +32,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     .from('matches')
     .select(`
       *,
-      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
-      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color),
+      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color, secondary_color),
+      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color, secondary_color),
       observer_team:teams!matches_observer_team_id_fkey(id, name)
     `)
     .eq('id', id)
@@ -94,7 +95,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             {/* Local */}
             <div className="flex-1 flex flex-col items-center">
               <div className="w-16 h-16 rounded-full bg-white mb-3 flex items-center justify-center relative shadow-lg">
-                <div className="absolute inset-1 rounded-full" style={{ background: ht?.color || '#3b82f6' }} />
+                <div className="absolute inset-1 rounded-full" style={{ background: getTeamColorBackground(ht, '#3b82f6') }} />
               </div>
               <div className="font-display text-xl text-center leading-tight truncate w-full">{ht?.short_name || ht?.name?.substring(0,3).toUpperCase()}</div>
               <div className="text-[10px] text-blue-200 mt-1 uppercase tracking-wider">{ht?.name}</div>
@@ -118,7 +119,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             {/* Visitante */}
             <div className="flex-1 flex flex-col items-center">
               <div className="w-16 h-16 rounded-full bg-white mb-3 flex items-center justify-center relative shadow-lg">
-                <div className="absolute inset-1 rounded-full" style={{ background: at?.color || '#94a3b8' }} />
+                <div className="absolute inset-1 rounded-full" style={{ background: getTeamColorBackground(at, '#94a3b8') }} />
               </div>
               <div className="font-display text-xl text-center leading-tight truncate w-full">{at?.short_name || at?.name?.substring(0,3).toUpperCase()}</div>
               <div className="text-[10px] text-blue-200 mt-1 uppercase tracking-wider">{at?.name}</div>

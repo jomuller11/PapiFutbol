@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Shuffle, Zap, Check, AlertCircle, Users, Star } from 'lucide-react';
 import { saveDraw } from '@/lib/actions/teams';
+import { isLightColor } from '@/lib/constants';
 import type { DrawPlayer, DrawTeam } from './page';
 
 type Props = {
@@ -180,10 +181,11 @@ export function DrawClient({ tournament, availablePlayers, teams }: Props) {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {byTeam.map(({ team, players, totalScore }) => {
               const diff = totalScore - globalAvg;
+              const usesLightHeader = isLightColor(team.color);
               return (
                 <div key={team.id} className="bg-white border border-slate-200">
                   <div
-                    className="px-4 py-3 flex items-center justify-between text-white"
+                    className={`px-4 py-3 flex items-center justify-between ${usesLightHeader ? 'text-slate-950' : 'text-white'}`}
                     style={{ backgroundColor: team.color }}
                   >
                     <div>
@@ -192,7 +194,7 @@ export function DrawClient({ tournament, availablePlayers, teams }: Props) {
                     </div>
                     <div className="text-right">
                       <div className="font-display text-2xl font-bold leading-none">{totalScore}</div>
-                      <div className={`font-mono text-[9px] mt-0.5 ${diff === 0 ? 'opacity-60' : diff > 0 ? 'text-yellow-300' : 'text-blue-200'}`}>
+                      <div className={`font-mono text-[9px] mt-0.5 ${diff === 0 ? 'opacity-60' : diff > 0 ? usesLightHeader ? 'text-amber-800' : 'text-yellow-300' : usesLightHeader ? 'text-blue-900' : 'text-blue-200'}`}>
                         {diff > 0 ? `+${diff}` : diff === 0 ? '±0' : diff}
                       </div>
                     </div>

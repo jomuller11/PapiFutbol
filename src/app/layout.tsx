@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Liga.9 — Torneo 2026',
-  description: 'Sistema de administración del torneo de fútbol 9',
+  title: 'Papi Fútbol — Temporada 2026',
+  description: 'Sistema de administración y seguimiento de Papi Fútbol.',
 };
 
 export default function RootLayout({

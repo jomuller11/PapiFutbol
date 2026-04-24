@@ -12,6 +12,7 @@ type StandingRow = {
   team_id: string;
   team_name: string;
   color: string;
+  secondary_color?: string | null;
   group_name: string;
   pj: number;
   pg: number;
@@ -78,8 +79,8 @@ export default async function StandingsPage() {
       .select(`
         phase_id, bracket_id, home_team_id, away_team_id, home_score, away_score, status,
         bracket:brackets!matches_bracket_id_fkey(id, name),
-        home_team:teams!matches_home_team_id_fkey(id, name, color),
-        away_team:teams!matches_away_team_id_fkey(id, name, color)
+        home_team:teams!matches_home_team_id_fkey(id, name, color, secondary_color),
+        away_team:teams!matches_away_team_id_fkey(id, name, color, secondary_color)
       `)
       .eq('tournament_id', tournamentId)
       .not('bracket_id', 'is', null)
@@ -101,6 +102,7 @@ export default async function StandingsPage() {
         team_id: row.team_id,
         team_name: row.team_name,
         color: row.color,
+        secondary_color: null,
         group_name: groupName,
         pj: row.played ?? 0,
         pg: row.wins ?? 0,
@@ -140,6 +142,7 @@ export default async function StandingsPage() {
           team_id: team.id,
           team_name: team.name,
           color: team.color,
+          secondary_color: team.secondary_color ?? null,
           group_name: bracketName,
           pj: 0,
           pg: 0,

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Trophy, Medal, Award } from 'lucide-react';
 import { MobileHeader } from '@/components/public/MobileHeader';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { getBracketsData, getBracketPhases } from '@/lib/actions/brackets';
 import { roundName } from '@/lib/utils/bracket';
 import { formatDisplayScore, getLegLabel, getMatchWinnerSide } from '@/lib/utils/match-notes';
@@ -222,10 +223,7 @@ function TieCard({ tie, isFinal = false }: { tie: TieGroup; isFinal?: boolean })
           winner === 'home' ? 'bg-emerald-50 border-b border-emerald-100' : 'border-b border-slate-100'
         }`}
       >
-        <span
-          className="w-2.5 h-2.5 mr-2 flex-shrink-0"
-          style={{ background: home?.color ?? '#cbd5e1' }}
-        />
+        <TeamColorSwatch team={home} className="w-2.5 h-2.5 mr-2 flex-shrink-0" fallback="#cbd5e1" />
         <span
           className={`flex-1 text-[13px] truncate ${
             winner === 'home'
@@ -256,10 +254,7 @@ function TieCard({ tie, isFinal = false }: { tie: TieGroup; isFinal?: boolean })
           winner === 'away' ? 'bg-emerald-50' : ''
         }`}
       >
-        <span
-          className="w-2.5 h-2.5 mr-2 flex-shrink-0"
-          style={{ background: away?.color ?? '#cbd5e1' }}
-        />
+        <TeamColorSwatch team={away} className="w-2.5 h-2.5 mr-2 flex-shrink-0" fallback="#cbd5e1" />
         <span
           className={`flex-1 text-[13px] truncate ${
             winner === 'away'

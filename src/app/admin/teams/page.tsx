@@ -6,6 +6,7 @@ export type TeamWithRoster = {
   name: string;
   short_name: string;
   color: string;
+  secondary_color: string | null;
   logo_url: string | null;
   group_id: string | null;
   group_name: string | null;
@@ -88,6 +89,7 @@ export default async function AdminTeamsPage() {
       name,
       short_name,
       color,
+      secondary_color,
       logo_url,
       group_teams (
         group:groups!inner (
@@ -164,6 +166,7 @@ export default async function AdminTeamsPage() {
       name: t.name,
       short_name: t.short_name,
       color: t.color,
+      secondary_color: t.secondary_color ?? null,
       logo_url: t.logo_url,
       group_id: group?.id ?? null,
       group_name: group?.name ?? null,

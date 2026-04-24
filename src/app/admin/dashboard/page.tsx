@@ -5,6 +5,7 @@ import {
   Clock, Shield, AlertCircle, CheckCircle2, Target,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 
 export default async function AdminDashboard() {
   const supabase = await createClient();
@@ -61,8 +62,8 @@ export default async function AdminDashboard() {
       ? supabase.from('matches')
           .select(`
             id, match_date, match_time, field_number, round_number,
-            home_team:teams!matches_home_team_id_fkey(name, short_name, color),
-            away_team:teams!matches_away_team_id_fkey(name, short_name, color)
+            home_team:teams!matches_home_team_id_fkey(name, short_name, color, secondary_color),
+            away_team:teams!matches_away_team_id_fkey(name, short_name, color, secondary_color)
           `)
           .eq('tournament_id', tournamentId)
           .eq('status', 'scheduled')
@@ -75,8 +76,8 @@ export default async function AdminDashboard() {
       ? supabase.from('matches')
           .select(`
             id, match_date, round_number, home_score, away_score,
-            home_team:teams!matches_home_team_id_fkey(name, short_name, color),
-            away_team:teams!matches_away_team_id_fkey(name, short_name, color)
+            home_team:teams!matches_home_team_id_fkey(name, short_name, color, secondary_color),
+            away_team:teams!matches_away_team_id_fkey(name, short_name, color, secondary_color)
           `)
           .eq('tournament_id', tournamentId)
           .eq('status', 'played')
@@ -292,7 +293,7 @@ function QuickLink({ href, icon: Icon, label, badge }: {
 function MatchTeamRow({ team, bold }: { team: any; bold?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: team?.color ?? '#94a3b8' }} />
+      <TeamColorSwatch team={team} className="w-2.5 h-2.5 rounded-sm flex-shrink-0" />
       <span className={`text-xs truncate ${bold ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
         {team?.name ?? '—'}
       </span>

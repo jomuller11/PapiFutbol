@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import {
   createTeam, updateTeam, deleteTeam, uploadTeamLogo,
+  removeTeamLogo,
 } from '@/lib/actions/teams';
-import { TEAM_COLORS } from '@/lib/constants';
+import { TEAM_COLORS, isLightColor } from '@/lib/constants';
 import { RosterPanel } from './RosterPanel';
 import type { TeamWithRoster, GroupOption, AvailablePlayer } from '@/app/admin/teams/page';
 
@@ -30,10 +31,12 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
   const [color, setColor] = useState<string>(TEAM_COLORS[0].hex);
+  const [secondaryColor, setSecondaryColor] = useState<string>('');
   const [groupId, setGroupId] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [removeLogoOnSave, setRemoveLogoOnSave] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -49,10 +52,12 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
       setName(team?.name ?? '');
       setShortName(team?.short_name ?? '');
       setColor(team?.color ?? TEAM_COLORS[0].hex);
+      setSecondaryColor(team?.secondary_color ?? '');
       setGroupId(team?.group_id ?? '');
       setLogoUrl(team?.logo_url ?? null);
       setLogoFile(null);
       setLogoPreview(null);
+      setRemoveLogoOnSave(false);
       setError(null);
       setFieldErrors({});
       setZoneWarning(false);
@@ -62,6 +67,12 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
 
   if (!open) return null;
 
+  const usesLightHeader = isLightColor(color) || (!!secondaryColor && isLightColor(secondaryColor));
+  const headerTextClass = usesLightHeader ? 'text-slate-950' : 'text-white';
+  const closeButtonClass = usesLightHeader
+    ? 'bg-slate-900/10 hover:bg-slate-900/20 text-slate-950'
+    : 'bg-white/20 hover:bg-white/30 text-white';
+
   const canSubmit = name.trim().length >= 2 && shortName.trim().length >= 2;
   const originalGroupId = team?.group_id ?? '';
   const zoneChanged = isEdit && groupId !== originalGroupId;
@@ -70,6 +81,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
+    setRemoveLogoOnSave(false);
     if (file.size > 2 * 1024 * 1024) {
       setError('La imagen no puede superar 2MB.');
       return;
@@ -83,6 +95,8 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
   const clearLogo = () => {
     setLogoFile(null);
     setLogoPreview(null);
+    setRemoveLogoOnSave(true);
+    setLogoUrl(null);
     if (inputRef.current) inputRef.current.value = '';
   };
 
@@ -99,6 +113,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
     formData.append('name', name.trim());
     formData.append('short_name', shortName.trim().toUpperCase());
     formData.append('color', color);
+    formData.append('secondary_color', secondaryColor);
     if (groupId) formData.append('group_id', groupId);
 
     if (isEdit && team) {
@@ -118,6 +133,14 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
       }
 
       const teamId = isEdit ? team!.id : (result as any).data?.id;
+
+      if (removeLogoOnSave && isEdit && teamId) {
+        const removeLogoResult = await removeTeamLogo(teamId);
+        if (!removeLogoResult.success) {
+          setError('El equipo se guardó, pero no pudimos quitar el logo: ' + removeLogoResult.error);
+          return;
+        }
+      }
 
       if (logoFile && teamId) {
         const logoForm = new FormData();
@@ -164,16 +187,20 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
         {/* Header */}
         <div
           className="relative p-5 overflow-hidden transition-colors"
-          style={{ backgroundColor: color }}
+          style={{
+            background: secondaryColor
+              ? `linear-gradient(135deg, ${color} 0%, ${color} 50%, ${secondaryColor} 50%, ${secondaryColor} 100%)`
+              : color,
+          }}
         >
           <button
             onClick={() => !isPending && onClose()}
             disabled={isPending}
-            className="absolute top-3 right-3 w-7 h-7 bg-white/20 hover:bg-white/30 text-white flex items-center justify-center disabled:opacity-50"
+            className={`absolute top-3 right-3 w-7 h-7 flex items-center justify-center disabled:opacity-50 ${closeButtonClass}`}
           >
             <X className="w-4 h-4" />
           </button>
-          <div className="text-white">
+          <div className={headerTextClass}>
             <div className="font-mono text-[10px] tracking-widest font-semibold opacity-80 mb-1">
               {isEdit ? 'EDITAR EQUIPO' : 'NUEVO EQUIPO'}
             </div>
@@ -323,11 +350,12 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
               {/* Paleta */}
               <div>
                 <label className="font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold block mb-2">
-                  Color <span className="text-orange-600">*</span>
+                  Color principal <span className="text-orange-600">*</span>
                 </label>
                 <div className="grid grid-cols-6 gap-2">
                   {TEAM_COLORS.map(c => {
                     const active = color === c.hex;
+                    const checkClass = isLightColor(c.hex) ? 'text-slate-950' : 'text-white';
                     return (
                       <button
                         key={c.hex}
@@ -340,13 +368,53 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
                       >
-                        {active && <Check className="w-4 h-4 text-white drop-shadow" strokeWidth={3} />}
+                        {active && <Check className={`w-4 h-4 drop-shadow ${checkClass}`} strokeWidth={3} />}
                       </button>
                     );
                   })}
                 </div>
                 <div className="text-[10px] text-slate-400 mt-1 font-mono">
                   {TEAM_COLORS.find(c => c.hex === color)?.name}
+                </div>
+              </div>
+
+              <div>
+                <label className="font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold block mb-2">
+                  Color secundario
+                </label>
+                <div className="grid grid-cols-6 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSecondaryColor('')}
+                    disabled={isPending}
+                    className={`aspect-square flex items-center justify-center border text-[9px] font-mono transition-all ${
+                      secondaryColor === '' ? 'ring-2 ring-offset-2 ring-slate-900 border-slate-400' : 'border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    OFF
+                  </button>
+                  {TEAM_COLORS.map(c => {
+                    const active = secondaryColor === c.hex;
+                    const checkClass = isLightColor(c.hex) ? 'text-slate-950' : 'text-white';
+                    return (
+                      <button
+                        key={`secondary-${c.hex}`}
+                        type="button"
+                        onClick={() => setSecondaryColor(c.hex)}
+                        disabled={isPending}
+                        className={`aspect-square flex items-center justify-center transition-all ${
+                          active ? 'ring-2 ring-offset-2 ring-slate-900' : 'hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: c.hex }}
+                        title={c.name}
+                      >
+                        {active && <Check className={`w-4 h-4 drop-shadow ${checkClass}`} strokeWidth={3} />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1 font-mono">
+                  {secondaryColor ? TEAM_COLORS.find(c => c.hex === secondaryColor)?.name : 'Sin color secundario'}
                 </div>
               </div>
 

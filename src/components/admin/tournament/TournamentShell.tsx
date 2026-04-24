@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import type { ChangeEvent } from 'react';
 import {
   Trophy, Users, CalendarDays, Clock, MapPin, Plus, Settings, Edit3,
-  Trash2, Hash, AlertCircle, Play, CheckCircle2, Ban, Save,
+  Trash2, Hash, AlertCircle, Play, CheckCircle2, Ban, Save, ImagePlus,
 } from 'lucide-react';
 import {
   createTournament,
   setTournamentStatus,
   updateTimeSlots,
   deletePhase,
+  updateTournamentBrand,
+  uploadTournamentLogo,
 } from '@/lib/actions/tournament';
 import { PhaseEditor, type Phase as PhaseBase } from './PhaseEditor';
 import { GroupsManager, type Group } from './GroupsManager';
@@ -17,6 +20,8 @@ import { GroupsManager, type Group } from './GroupsManager';
 type Tournament = {
   id: string;
   name: string;
+  brand_name: string | null;
+  logo_url: string | null;
   year: number;
   status: 'draft' | 'active' | 'finished' | 'cancelled';
   fields_count: number;
@@ -179,7 +184,8 @@ function TournamentDetail({
     <div className="max-w-6xl mx-auto">
       <TournamentHeader tournament={tournament} approvedPlayersCount={approvedPlayersCount} role={role} />
 
-      <div className="grid grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <BrandPanel tournament={tournament} />
         <FieldsPanel tournament={tournament} />
         <TimeSlotsPanel tournament={tournament} />
       </div>
@@ -326,6 +332,137 @@ function TournamentHeader({
           <div>{error}</div>
         </div>
       )}
+    </div>
+  );
+}
+
+function BrandPanel({ tournament }: { tournament: Tournament }) {
+  const [brandName, setBrandName] = useState(tournament.brand_name ?? 'Papi Fútbol');
+  const [logoUrl, setLogoUrl] = useState<string | null>(tournament.logo_url ?? null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setSuccess(null);
+    if (file.size > 2 * 1024 * 1024) {
+      setError('La imagen no puede superar 2MB.');
+      return;
+    }
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = ev => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = () => {
+    setError(null);
+    setSuccess(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append('tournamentId', tournament.id);
+      formData.append('brand_name', brandName.trim());
+
+      const brandResult = await updateTournamentBrand(formData);
+      if (!brandResult.success) {
+        setError(brandResult.error);
+        return;
+      }
+
+      if (logoFile) {
+        const logoForm = new FormData();
+        logoForm.append('tournament_id', tournament.id);
+        logoForm.append('file', logoFile);
+        const logoResult = await uploadTournamentLogo(logoForm);
+        if (!logoResult.success) {
+          setError(logoResult.error);
+          return;
+        }
+        setLogoUrl(logoResult.data?.url ?? null);
+        setLogoFile(null);
+        setLogoPreview(null);
+      }
+
+      setSuccess('Marca actualizada.');
+    });
+  };
+
+  const displayLogo = logoPreview ?? logoUrl;
+
+  return (
+    <div className="bg-white border border-slate-200">
+      <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+        <ImagePlus className="w-4 h-4 text-blue-700" />
+        <h3 className="font-serif text-sm font-bold tracking-wide">Marca pública</h3>
+      </div>
+      <div className="p-5 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="w-20 h-20 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
+            {displayLogo ? (
+              <img src={displayLogo} alt={brandName || 'Logo del torneo'} className="w-full h-full object-contain" />
+            ) : (
+              <Trophy className="w-8 h-8 text-slate-300" />
+            )}
+          </div>
+          <div className="flex-1">
+            <label className="font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold block mb-1.5">
+              Nombre de marca
+            </label>
+            <input
+              type="text"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              placeholder="Papi Fútbol"
+              disabled={isPending}
+              className="w-full border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-blue-700"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold block mb-1.5">
+            Logo
+          </label>
+          <input
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,.svg,image/jpeg,image/png,image/webp,image/svg+xml"
+            onChange={handleLogoChange}
+            disabled={isPending}
+            className="block w-full text-xs text-slate-500 file:mr-3 file:border-0 file:bg-blue-900 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-blue-800"
+          />
+          <div className="mt-1 text-[10px] text-slate-500">
+            JPG, PNG, WEBP o SVG. Máximo 2MB.
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 flex items-start gap-2">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <div>{error}</div>
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs p-3">
+            {success}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isPending || brandName.trim().length < 2}
+          className="w-full bg-blue-900 text-white py-2.5 text-sm font-medium hover:bg-blue-800 flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <Save className="w-4 h-4" />
+          {isPending ? 'Guardando...' : 'Guardar marca'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   Zap, CalendarDays, MapPin, Eye, ChevronDown, ChevronRight,
   AlertCircle, Check, Clock, RefreshCw, Plus,
 } from 'lucide-react';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { generateGroupFixture } from '@/lib/actions/matches';
 import { getMatchWinnerSide } from '@/lib/utils/match-notes';
 import type { FixturePageData, MatchRow, GroupWithTeams } from './page';
@@ -299,10 +300,7 @@ function MatchCard({ match }: { match: MatchRow }) {
 function TeamRow({ team, bold }: { team: MatchRow['home_team']; bold: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <div
-        className="w-2.5 h-2.5 flex-shrink-0"
-        style={{ backgroundColor: team?.color ?? '#94a3b8' }}
-      />
+      <TeamColorSwatch team={team} className="w-2.5 h-2.5 flex-shrink-0" />
       <span className={`text-sm truncate ${bold ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
         {team?.name ?? '—'}
       </span>

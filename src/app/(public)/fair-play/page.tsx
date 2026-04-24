@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { Shield } from 'lucide-react';
 import { MobileHeader } from '@/components/public/MobileHeader';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 
 export const metadata = {
   title: 'Fair Play — Liga.9',
@@ -40,7 +41,7 @@ export default async function FairPlayPage() {
     .from('match_cards')
     .select(`
       type, team_id,
-      team:teams!match_cards_team_id_fkey(id, name, color),
+      team:teams!match_cards_team_id_fkey(id, name, color, secondary_color),
       match:matches!match_cards_match_id_fkey(tournament_id)
     `)
     .eq('match.tournament_id', (tournament as any).id);
@@ -48,7 +49,7 @@ export default async function FairPlayPage() {
   // Equipos del torneo
   const { data: teams } = await supabase
     .from('teams')
-    .select('id, name, color')
+    .select('id, name, color, secondary_color')
     .eq('tournament_id', (tournament as any).id)
     .order('name');
 
@@ -66,6 +67,7 @@ export default async function FairPlayPage() {
     team_id: string;
     team_name: string;
     color: string;
+    secondary_color?: string | null;
     yellow: number;
     blue: number;
     red: number;
@@ -77,6 +79,7 @@ export default async function FairPlayPage() {
       team_id: t.id,
       team_name: t.name,
       color: t.color,
+      secondary_color: t.secondary_color ?? null,
       yellow: 0,
       blue: 0,
       red: 0,
@@ -145,7 +148,7 @@ export default async function FairPlayPage() {
               <div key={row.team_id} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center px-3 py-3 gap-3 hover:bg-slate-50 transition-colors">
                 <div className="w-5 text-center font-mono text-xs text-slate-400 font-bold">{i + 1}</div>
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.color }} />
+                  <TeamColorSwatch team={row} className="w-2.5 h-2.5 rounded-full flex-shrink-0" />
                   <span className="font-semibold text-xs text-slate-900 truncate">{row.team_name}</span>
                 </div>
                 <div className="w-6 text-center font-mono text-xs text-slate-500">{row.yellow || '—'}</div>
@@ -182,4 +185,3 @@ function EmptyState() {
     </div>
   );
 }
-

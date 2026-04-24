@@ -87,6 +87,7 @@ export async function createTournament(
     .from('tournaments') as any)
     .insert({
       name,
+      brand_name: 'Papi Fútbol',
       year,
       fields_count,
       players_per_team,
@@ -168,6 +169,100 @@ export async function updateTimeSlots(
 
   revalidatePath('/admin/tournament');
   return { success: true };
+}
+
+export async function updateTournamentBrand(formData: FormData): Promise<ActionResult> {
+  const { supabase } = await requireAdmin();
+
+  const parsed = z.object({
+    tournamentId: z.string().uuid(),
+    brand_name: z.string().trim().min(2, 'Mínimo 2 caracteres').max(80, 'Máximo 80 caracteres'),
+  }).safeParse({
+    tournamentId: formData.get('tournamentId'),
+    brand_name: formData.get('brand_name'),
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Datos inválidos',
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { error } = await (supabase.from('tournaments') as any)
+    .update({ brand_name: parsed.data.brand_name })
+    .eq('id', parsed.data.tournamentId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/admin/tournament');
+  revalidatePath('/');
+  revalidatePath('/bracket');
+  revalidatePath('/fixture');
+  revalidatePath('/standings');
+  return { success: true };
+}
+
+export async function uploadTournamentLogo(formData: FormData): Promise<ActionResult<{ url: string }>> {
+  const { supabase } = await requireAdmin();
+
+  const tournamentId = formData.get('tournament_id') as string | null;
+  if (!tournamentId || !z.string().uuid().safeParse(tournamentId).success) {
+    return { success: false, error: 'Torneo inválido.' };
+  }
+
+  const file = formData.get('file') as File | null;
+  if (!file) return { success: false, error: 'No seleccionaste un archivo.' };
+  if (file.size > 2 * 1024 * 1024) return { success: false, error: 'Máximo 2MB.' };
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+    return { success: false, error: 'Solo JPG, PNG, WEBP o SVG.' };
+  }
+
+  const ext = file.type === 'image/jpeg'
+    ? 'jpg'
+    : file.type === 'image/png'
+      ? 'png'
+      : file.type === 'image/svg+xml'
+        ? 'svg'
+        : 'webp';
+
+  const path = `tournaments/${tournamentId}/logo-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('team-logos')
+    .upload(path, file, { upsert: false, contentType: file.type });
+
+  if (uploadError) {
+    console.error('uploadTournamentLogo error', uploadError);
+    if (uploadError.message.toLowerCase().includes('bucket')) {
+      return {
+        success: false,
+        error: 'Falta el bucket "team-logos" en Supabase Storage. Crealo como público con límite 2MB.',
+      };
+    }
+    return { success: false, error: 'No pudimos subir el logo.' };
+  }
+
+  const { data: publicUrl } = supabase.storage.from('team-logos').getPublicUrl(path);
+
+  const { error: updateError } = await (supabase.from('tournaments') as any)
+    .update({ logo_url: publicUrl.publicUrl })
+    .eq('id', tournamentId);
+
+  if (updateError) {
+    return {
+      success: false,
+      error: 'Subimos el logo pero no pudimos asociarlo al torneo: ' + updateError.message,
+    };
+  }
+
+  revalidatePath('/admin/tournament');
+  revalidatePath('/');
+  revalidatePath('/bracket');
+  revalidatePath('/fixture');
+  revalidatePath('/standings');
+  return { success: true, data: { url: publicUrl.publicUrl } };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

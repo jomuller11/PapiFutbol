@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Zap } from 'lucide-react';
 import { MobileHeader } from '@/components/public/MobileHeader';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 
 export const metadata = {
   title: 'Goleadores — Liga.9',
@@ -35,7 +36,7 @@ export default async function ScorersPage() {
         id, first_name, last_name, nickname, position, avatar_url,
         profile:profiles!players_profile_id_fkey(email)
       ),
-      team:teams!match_goals_team_id_fkey(name, color),
+      team:teams!match_goals_team_id_fkey(name, color, secondary_color),
       match:matches!match_goals_match_id_fkey(tournament_id)
     `)
     .eq('match.tournament_id', (tournament as any).id)
@@ -133,7 +134,7 @@ export default async function ScorersPage() {
                   {name} {s.player?.nickname && <span className="text-slate-400 text-xs font-medium">"{s.player.nickname}"</span>}
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                  <div className="w-2 h-2 rounded-sm" style={{ background: s.team?.color ?? '#94a3b8' }} />
+                  <TeamColorSwatch team={s.team} className="w-2 h-2 rounded-sm" />
                   <span className="truncate">{s.team?.name}</span>
                   {s.player?.position && (
                     <>
@@ -165,4 +166,3 @@ function EmptyState() {
     </div>
   );
 }
-

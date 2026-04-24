@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { MobileHeader } from '@/components/public/MobileHeader';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { Shield } from 'lucide-react';
 
 export const metadata = {
@@ -36,13 +37,13 @@ export default async function GoalkeepersPage() {
       .eq('status', 'played'),
     supabase
       .from('teams')
-      .select('id, name, short_name, color')
+      .select('id, name, short_name, color, secondary_color')
       .eq('tournament_id', tid)
       .order('name'),
   ]);
 
   type TeamStat = {
-    id: string; name: string; short_name: string; color: string;
+    id: string; name: string; short_name: string; color: string; secondary_color?: string | null;
     pj: number; gc: number; gf: number; cs: number;
   };
 
@@ -50,7 +51,7 @@ export default async function GoalkeepersPage() {
   for (const team of (teams as any[]) ?? []) {
     statsMap[team.id] = {
       id: team.id, name: team.name, short_name: team.short_name,
-      color: team.color, pj: 0, gc: 0, gf: 0, cs: 0,
+      color: team.color, secondary_color: team.secondary_color ?? null, pj: 0, gc: 0, gf: 0, cs: 0,
     };
   }
   for (const m of (matches as any[]) ?? []) {
@@ -171,7 +172,7 @@ export default async function GoalkeepersPage() {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: team.color }} />
+                  <TeamColorSwatch team={team} className="w-2.5 h-2.5 rounded-sm flex-shrink-0" />
                   <div className="font-semibold text-sm text-slate-800 truncate">{team.name}</div>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
@@ -203,7 +204,7 @@ export default async function GoalkeepersPage() {
                 href={`/team/${t.id}`}
                 className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:border-slate-400 transition-colors"
               >
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                <TeamColorSwatch team={t} className="w-2 h-2 rounded-full flex-shrink-0" />
                 {t.name}
               </Link>
             ))}

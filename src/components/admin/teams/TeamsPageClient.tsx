@@ -5,6 +5,7 @@ import {
   Search, Plus, Shield, Users, Star, Edit3, MapPin, Crown,
 } from 'lucide-react';
 import type { TeamsPageData, TeamWithRoster } from '@/app/admin/teams/page';
+import { isLightColor } from '@/lib/constants';
 import { TeamEditor } from './TeamEditor';
 
 type Props = {
@@ -157,13 +158,24 @@ export function TeamsPageClient({ data }: Props) {
 
 function TeamCard({ team, onEdit }: { team: TeamWithRoster; onEdit: () => void }) {
   const captain = team.members.find(m => m.is_captain);
+  const usesLightHeader = isLightColor(team.color) || (!!team.secondary_color && isLightColor(team.secondary_color));
+  const headerTextClass = usesLightHeader ? 'text-slate-950' : 'text-white';
+  const logoShellClass = usesLightHeader ? 'bg-slate-900/10 border-slate-900/20' : 'bg-white/20 border-white/40';
+  const editButtonClass = usesLightHeader
+    ? 'bg-slate-900/10 hover:bg-slate-900/20 text-slate-950'
+    : 'bg-white/10 hover:bg-white/20 text-white';
+  const shieldClass = usesLightHeader ? 'text-slate-950' : 'text-white';
 
   return (
     <div className="bg-white border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow">
       {/* Header con color */}
       <div
         className="h-20 relative flex items-center justify-between px-4"
-        style={{ backgroundColor: team.color }}
+        style={{
+          background: team.secondary_color
+            ? `linear-gradient(135deg, ${team.color} 0%, ${team.color} 50%, ${team.secondary_color} 50%, ${team.secondary_color} 100%)`
+            : team.color,
+        }}
       >
         <div className="flex items-center gap-3">
           {team.logo_url ? (
@@ -175,11 +187,11 @@ function TeamCard({ team, onEdit }: { team: TeamWithRoster; onEdit: () => void }
               />
             </div>
           ) : (
-            <div className="w-12 h-12 bg-white/20 border border-white/40 flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" strokeWidth={1.5} />
+            <div className={`w-12 h-12 border flex items-center justify-center ${logoShellClass}`}>
+              <Shield className={`w-6 h-6 ${shieldClass}`} strokeWidth={1.5} />
             </div>
           )}
-          <div className="text-white">
+          <div className={headerTextClass}>
             <div className="font-serif font-bold text-base leading-tight drop-shadow-sm">
               {team.name}
             </div>
@@ -192,7 +204,7 @@ function TeamCard({ team, onEdit }: { team: TeamWithRoster; onEdit: () => void }
         <button
           type="button"
           onClick={onEdit}
-          className="w-8 h-8 bg-white/10 hover:bg-white/20 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          className={`w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${editButtonClass}`}
           title="Editar"
         >
           <Edit3 className="w-3.5 h-3.5" />

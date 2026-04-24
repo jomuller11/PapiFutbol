@@ -12,8 +12,8 @@ export type MatchRow = {
   home_score: number | null;
   away_score: number | null;
   notes: string | null;
-  home_team: { id: string; name: string; short_name: string; color: string } | null;
-  away_team: { id: string; name: string; short_name: string; color: string } | null;
+  home_team: { id: string; name: string; short_name: string; color: string; secondary_color?: string | null } | null;
+  away_team: { id: string; name: string; short_name: string; color: string; secondary_color?: string | null } | null;
   observer_team: { name: string; short_name: string } | null;
   group: { id: string; name: string } | null;
   phase: { id: string; name: string } | null;
@@ -70,8 +70,8 @@ export default async function AdminFixturePage() {
     .from('matches')
     .select(`
       id, round_number, match_date, match_time, field_number, status, home_score, away_score, notes,
-      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
-      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color),
+      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color, secondary_color),
+      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color, secondary_color),
       observer_team:teams!matches_observer_team_id_fkey(id, name, short_name),
       group:groups(id, name),
       phase:phases(id, name)

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Clock, MapPin, ChevronRight } from 'lucide-react';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { formatDisplayScore, getMatchWinnerSide } from '@/lib/utils/match-notes';
 
 export function MatchRow({ match, showScore }: { match: any; showScore?: boolean }) {
@@ -20,7 +21,7 @@ export function MatchRow({ match, showScore }: { match: any; showScore?: boolean
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm" style={{ background: ht?.color || '#94a3b8' }} />
+            <TeamColorSwatch team={ht} className="w-3 h-3 rounded-sm" />
             <span className={`text-sm truncate ${homeWon ? 'font-bold' : 'font-medium text-slate-600'}`}>{ht?.name}</span>
           </div>
           {showScore ? (
@@ -31,7 +32,7 @@ export function MatchRow({ match, showScore }: { match: any; showScore?: boolean
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm" style={{ background: at?.color || '#94a3b8' }} />
+            <TeamColorSwatch team={at} className="w-3 h-3 rounded-sm" />
             <span className={`text-sm truncate ${awayWon ? 'font-bold' : 'font-medium text-slate-600'}`}>{at?.name}</span>
           </div>
           {showScore ? (

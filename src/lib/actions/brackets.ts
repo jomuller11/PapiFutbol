@@ -662,8 +662,8 @@ export async function getBracketData(bracketId: string): Promise<BracketData | n
     .select(`
       id, round_number, bracket_position, notes, home_team_id, away_team_id,
       home_score, away_score, status, match_date, match_time, field_number,
-      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
-      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color)
+      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color, secondary_color),
+      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color, secondary_color)
     `)
     .eq('bracket_id', (bracket as any).id)
     .order('round_number', { ascending: true })
@@ -721,8 +721,8 @@ export async function getBracketsData(phaseId: string): Promise<BracketData[]> {
     .select(`
       id, bracket_id, round_number, bracket_position, notes, home_team_id, away_team_id,
       home_score, away_score, status, match_date, match_time, field_number,
-      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
-      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color)
+      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color, secondary_color),
+      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color, secondary_color)
     `)
     .in('bracket_id', bracketIds)
     .order('round_number', { ascending: true })

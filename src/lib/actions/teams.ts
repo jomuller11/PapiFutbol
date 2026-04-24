@@ -52,6 +52,11 @@ const TeamInputSchema = z.object({
   color: z
     .string()
     .refine(c => VALID_COLORS.includes(c as any), 'Color inválido'),
+  secondary_color: z
+    .union([z.string().refine(c => VALID_COLORS.includes(c as any), 'Color invÃ¡lido'), z.literal('')])
+    .transform((value) => (value === '' ? null : value))
+    .nullable()
+    .optional(),
   group_id: z.string().uuid().nullable().optional(),
 });
 
@@ -67,6 +72,7 @@ export async function createTeam(formData: FormData): Promise<ActionResult<{ id:
     name: formData.get('name'),
     short_name: formData.get('short_name'),
     color: formData.get('color'),
+    secondary_color: formData.get('secondary_color') || '',
     group_id: formData.get('group_id') || null,
   });
 
@@ -78,7 +84,7 @@ export async function createTeam(formData: FormData): Promise<ActionResult<{ id:
     };
   }
 
-  const { name, short_name, color, group_id } = parsed.data;
+  const { name, short_name, color, secondary_color, group_id } = parsed.data;
 
   // Insertar equipo
   const { data: team, error } = await (supabase
@@ -88,6 +94,7 @@ export async function createTeam(formData: FormData): Promise<ActionResult<{ id:
       name,
       short_name,
       color,
+      secondary_color,
     })
     .select('id')
     .single();
@@ -135,6 +142,7 @@ export async function updateTeam(formData: FormData): Promise<ActionResult> {
     name: formData.get('name'),
     short_name: formData.get('short_name'),
     color: formData.get('color'),
+    secondary_color: formData.get('secondary_color') || '',
     group_id: formData.get('group_id') || null,
   });
 
@@ -146,12 +154,12 @@ export async function updateTeam(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const { name, short_name, color, group_id } = parsed.data;
+  const { name, short_name, color, secondary_color, group_id } = parsed.data;
 
   // Actualizar datos del equipo
   const { error: teamError } = await (supabase
     .from('teams') as any)
-    .update({ name, short_name, color })
+    .update({ name, short_name, color, secondary_color })
     .eq('id', teamId);
 
   if (teamError) {
@@ -337,6 +345,23 @@ export async function uploadTeamLogo(formData: FormData): Promise<ActionResult<{
 
   revalidatePath('/admin/teams');
   return { success: true, data: { url: publicUrl.publicUrl } };
+}
+
+export async function removeTeamLogo(teamId: string): Promise<ActionResult> {
+  const { supabase } = await requireStaffOrAdmin();
+
+  if (!teamId || !z.string().uuid().safeParse(teamId).success) {
+    return { success: false, error: 'Equipo invÃ¡lido' };
+  }
+
+  const { error } = await (supabase.from('teams') as any)
+    .update({ logo_url: null })
+    .eq('id', teamId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/admin/teams');
+  return { success: true };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
+import { isLightColor } from '@/lib/constants';
 import { Shield, MapPin, Clock, Target, Star } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -23,13 +25,19 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, name, short_name, color, logo_url, tournament_id')
+    .select('id, name, short_name, color, secondary_color, logo_url, tournament_id')
     .eq('id', id)
     .single();
 
   if (!team) notFound();
 
   const t = team as any;
+  const usesLightHeader = isLightColor(t.color) || (!!t.secondary_color && isLightColor(t.secondary_color));
+  const headerTextClass = usesLightHeader ? 'text-slate-950' : 'text-white';
+  const metaTextClass = usesLightHeader ? 'text-slate-950/70' : 'text-white/70';
+  const subMetaTextClass = usesLightHeader ? 'text-slate-950/60' : 'text-white/60';
+  const shieldShellClass = usesLightHeader ? 'bg-slate-900/10' : 'bg-white/20';
+  const shieldClass = usesLightHeader ? 'text-slate-950' : 'text-white';
 
   const [rosterRes, matchesRes, groupTeamRes] = await Promise.all([
     supabase
@@ -42,8 +50,8 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
       .from('matches')
       .select(`
         id, round_number, match_date, match_time, field_number, status, home_score, away_score,
-        home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
-        away_team:teams!matches_away_team_id_fkey(id, name, short_name, color)
+        home_team:teams!matches_home_team_id_fkey(id, name, short_name, color, secondary_color),
+        away_team:teams!matches_away_team_id_fkey(id, name, short_name, color, secondary_color)
       `)
       .eq('tournament_id', t.tournament_id)
       .or(`home_team_id.eq.${id},away_team_id.eq.${id}`)
@@ -79,21 +87,28 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
       <MobileHeader title={t.short_name} backHref="/" />
 
       {/* Hero */}
-      <div className="px-4 pt-5 pb-4" style={{ backgroundColor: t.color }}>
+      <div
+        className="px-4 pt-5 pb-4"
+        style={{
+          background: t.secondary_color
+            ? `linear-gradient(135deg, ${t.color} 0%, ${t.color} 50%, ${t.secondary_color} 50%, ${t.secondary_color} 100%)`
+            : t.color,
+        }}
+      >
         <div className="flex items-center gap-4">
           {t.logo_url ? (
             <img src={t.logo_url} alt={t.name} className="w-16 h-16 object-contain bg-white/10 rounded-sm" />
           ) : (
-            <div className="w-16 h-16 bg-white/20 flex items-center justify-center rounded-sm">
-              <Shield className="w-8 h-8 text-white opacity-60" />
+            <div className={`w-16 h-16 flex items-center justify-center rounded-sm ${shieldShellClass}`}>
+              <Shield className={`w-8 h-8 opacity-60 ${shieldClass}`} />
             </div>
           )}
           <div>
-            <div className="font-mono text-[10px] text-white/70 uppercase tracking-widest">
+            <div className={`font-mono text-[10px] uppercase tracking-widest ${metaTextClass}`}>
               {groupInfo ? `${groupInfo.phase?.name ?? 'Fase'} · Zona ${groupInfo.name}` : 'Equipo'}
             </div>
-            <div className="font-serif text-2xl font-bold text-white leading-tight">{t.name}</div>
-            <div className="font-mono text-[10px] text-white/60 mt-1">{roster.length} jugadores</div>
+            <div className={`font-serif text-2xl font-bold leading-tight ${headerTextClass}`}>{t.name}</div>
+            <div className={`font-mono text-[10px] mt-1 ${subMetaTextClass}`}>{roster.length} jugadores</div>
           </div>
         </div>
       </div>
@@ -222,10 +237,7 @@ function MatchRow({ match: m, teamId, showScore }: { match: any; teamId: string;
         <div className="font-mono text-[9px] text-slate-400 uppercase">F{m.round_number}</div>
         <div className="font-mono text-[9px] text-slate-400">{m.match_time?.substring(0, 5)}</div>
       </div>
-      <div
-        className="w-2 h-2 rounded-full flex-shrink-0"
-        style={{ backgroundColor: opponent?.color ?? '#94a3b8' }}
-      />
+      <TeamColorSwatch team={opponent} className="w-2 h-2 rounded-full flex-shrink-0" />
       <span className="flex-1 text-sm text-slate-700 truncate">vs {opponent?.name ?? '—'}</span>
       {showScore ? (
         <div className="flex items-center gap-2 flex-shrink-0">

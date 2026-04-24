@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { ShieldAlert } from 'lucide-react';
 
 export const metadata = {
@@ -37,7 +38,7 @@ export default async function SanctionsPage() {
     .select(`
       type, player_id, team_id,
       player:players!match_cards_player_id_fkey(id, first_name, last_name, nickname),
-      team:teams!match_cards_team_id_fkey(id, name, color),
+      team:teams!match_cards_team_id_fkey(id, name, color, secondary_color),
       match:matches!match_cards_match_id_fkey(tournament_id)
     `)
     .eq('match.tournament_id', (tournament as any).id);
@@ -123,7 +124,7 @@ export default async function SanctionsPage() {
                   <div className="min-w-0">
                     <div className="font-semibold text-xs text-slate-900 truncate">{row.player_name}</div>
                     <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: row.color }} />
+                      <TeamColorSwatch team={row} className="w-2.5 h-2.5 rounded-full flex-shrink-0" />
                       <span className="text-[11px] text-slate-500 truncate">{row.team_name}</span>
                     </div>
                   </div>

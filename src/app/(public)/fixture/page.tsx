@@ -40,8 +40,8 @@ export default async function FixturePage() {
       id, match_date, match_time, field_number, round_number, group_id, bracket_id,
       status, home_score, away_score, notes,
       phase:phases!matches_phase_id_fkey(id, name, type),
-      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
-      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color),
+      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color, secondary_color),
+      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color, secondary_color),
       group:groups!matches_group_id_fkey(name),
       bracket:brackets!matches_bracket_id_fkey(name)
     `)

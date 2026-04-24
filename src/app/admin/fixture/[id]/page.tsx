@@ -16,7 +16,7 @@ export type GoalRow = {
   minute: number | null;
   is_own_goal: boolean;
   player: { id: string; first_name: string; last_name: string; nickname: string | null } | null;
-  team: { id: string; name: string; color: string } | null;
+  team: { id: string; name: string; color: string; secondary_color?: string | null } | null;
 };
 
 export type CardRow = {
@@ -24,7 +24,7 @@ export type CardRow = {
   type: 'yellow' | 'red' | 'blue';
   minute: number | null;
   player: { id: string; first_name: string; last_name: string; nickname: string | null } | null;
-  team: { id: string; name: string; color: string } | null;
+  team: { id: string; name: string; color: string; secondary_color?: string | null } | null;
 };
 
 export type TeamOption = {
@@ -32,6 +32,7 @@ export type TeamOption = {
   name: string;
   short_name: string;
   color: string;
+  secondary_color?: string | null;
 };
 
 export type MatchDetailData = {
@@ -99,9 +100,9 @@ export default async function MatchDetailPage({
     .select(`
       id, round_number, match_date, match_time, field_number, status, home_score, away_score, notes,
       tournament_id, home_team_id, away_team_id,
-      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
-      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color),
-      observer_team:teams!matches_observer_team_id_fkey(id, name, short_name, color),
+      home_team:teams!matches_home_team_id_fkey(id, name, short_name, color, secondary_color),
+      away_team:teams!matches_away_team_id_fkey(id, name, short_name, color, secondary_color),
+      observer_team:teams!matches_observer_team_id_fkey(id, name, short_name, color, secondary_color),
       group:groups(name),
       phase:phases(name)
     `)
@@ -119,7 +120,7 @@ export default async function MatchDetailPage({
       .select(`
         id, minute, is_own_goal,
         player:players(id, first_name, last_name, nickname),
-        team:teams(id, name, color)
+        team:teams(id, name, color, secondary_color)
       `)
       .eq('match_id', id)
       .order('minute', { ascending: true, nullsFirst: false }),
@@ -129,7 +130,7 @@ export default async function MatchDetailPage({
       .select(`
         id, type, minute,
         player:players(id, first_name, last_name, nickname),
-        team:teams(id, name, color)
+        team:teams(id, name, color, secondary_color)
       `)
       .eq('match_id', id)
       .order('minute', { ascending: true, nullsFirst: false }),
@@ -148,7 +149,7 @@ export default async function MatchDetailPage({
 
     supabase
       .from('teams')
-      .select('id, name, short_name, color')
+      .select('id, name, short_name, color, secondary_color')
       .eq('tournament_id', tournamentId)
       .order('name'),
   ]);

@@ -5,6 +5,8 @@ import {
   ChevronRight, Clock, Hash, Users
 } from 'lucide-react';
 import { MatchRow } from '@/components/public/MatchRow';
+import { SiteBrand, SiteBrandMark } from '@/components/branding/SiteBrand';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 
 export const metadata = {
   title: 'Liga.9 — Torneo de Fútbol 9',
@@ -12,7 +14,7 @@ export const metadata = {
 };
 
 type HomeStandingRow = {
-  team_id: string; team_name: string; color: string; group_name: string;
+  team_id: string; team_name: string; color: string; secondary_color?: string | null; group_name: string;
   pj: number; gf: number; gc: number; dg: number; pts: number;
 };
 
@@ -21,17 +23,16 @@ export default async function PublicHomePage() {
 
   const { data: tournament } = await supabase
     .from('tournaments')
-    .select('id, name, year, fields_count, players_per_team, max_teams')
+    .select('id, name, brand_name, logo_url, year, fields_count, players_per_team, max_teams')
     .eq('status', 'active')
     .maybeSingle();
 
   if (!tournament) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 text-center">
-        <Trophy className="w-16 h-16 text-slate-300 mb-4" strokeWidth={1.5} />
-        <h1 className="font-serif text-3xl font-bold mb-2 text-slate-800">
-          Liga<span className="text-orange-500">.</span>9
-        </h1>
+        <div className="mb-4">
+          <SiteBrand size="md" />
+        </div>
         <p className="text-slate-500 text-sm">Pronto habrá un torneo activo.</p>
       </div>
     );
@@ -46,8 +47,8 @@ export default async function PublicHomePage() {
         .select(`
           id, match_date, match_time, field_number, round_number,
           home_score, away_score, status, group_id,
-          home_team:teams!matches_home_team_id_fkey(name, short_name, color),
-          away_team:teams!matches_away_team_id_fkey(name, short_name, color),
+          home_team:teams!matches_home_team_id_fkey(name, short_name, color, secondary_color),
+          away_team:teams!matches_away_team_id_fkey(name, short_name, color, secondary_color),
           group:groups!matches_group_id_fkey(name)
         `)
         .eq('tournament_id', (tournament as any).id)
@@ -60,8 +61,8 @@ export default async function PublicHomePage() {
         .from('matches')
         .select(`
           id, match_date, match_time, field_number, round_number, status, group_id,
-          home_team:teams!matches_home_team_id_fkey(name, short_name, color),
-          away_team:teams!matches_away_team_id_fkey(name, short_name, color),
+          home_team:teams!matches_home_team_id_fkey(name, short_name, color, secondary_color),
+          away_team:teams!matches_away_team_id_fkey(name, short_name, color, secondary_color),
           group:groups!matches_group_id_fkey(name)
         `)
         .eq('tournament_id', (tournament as any).id)
@@ -79,7 +80,7 @@ export default async function PublicHomePage() {
 
       supabase
         .from('teams')
-        .select('id, name, color, group_teams(groups(name))')
+        .select('id, name, color, secondary_color, group_teams(groups(name))')
         .eq('tournament_id', (tournament as any).id)
         .order('name'),
 
@@ -107,7 +108,7 @@ export default async function PublicHomePage() {
   if (topScorerIds.length > 0) {
     const { data: players } = await supabase
       .from('players')
-      .select('id, first_name, last_name, nickname, position, team_memberships(team:teams(name, color))')
+      .select('id, first_name, last_name, nickname, position, team_memberships(team:teams(name, color, secondary_color))')
       .in('id', topScorerIds.map(s => s.id));
     topScorers = topScorerIds.map(({ id, cnt }) => ({
       ...(players?.find((p: any) => p.id === id) as any),
@@ -121,7 +122,7 @@ export default async function PublicHomePage() {
     const standingMap: Record<string, HomeStandingRow> = {};
     for (const t of teamsWithGroupsRes.data as any[]) {
       standingMap[t.id] = {
-        team_id: t.id, team_name: t.name, color: t.color,
+        team_id: t.id, team_name: t.name, color: t.color, secondary_color: t.secondary_color ?? null,
         group_name: t.group_teams?.[0]?.groups?.name || '',
         pj: 0, gf: 0, gc: 0, dg: 0, pts: 0,
       };
@@ -195,13 +196,14 @@ export default async function PublicHomePage() {
             {/* Left: branding + title */}
             <div>
               {/* Mobile top bar (logo + status badge) */}
-              <div className="flex items-center justify-between mb-4 md:hidden">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-white flex items-center justify-center relative">
-                    <Trophy className="w-4 h-4 text-blue-900" strokeWidth={2.5} />
-                    <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500" />
+              <div className="flex items-center justify-end mb-4 md:hidden">
+                <div className="hidden">
+                  <div className="font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-orange-300">
+                    Colegio Marista San José · Morón
                   </div>
-                  <div className="font-serif text-lg font-black leading-none">Liga<span className="text-orange-400">.</span>9</div>
+                  <div className="text-3xl font-black leading-none text-white">
+                    Papi Fútbol
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-white/10 backdrop-blur text-[9px] font-mono tracking-widest">
                   <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-pulse" />
@@ -211,6 +213,14 @@ export default async function PublicHomePage() {
 
               <div className="font-mono text-[10px] md:text-[11px] text-orange-400 tracking-[0.2em] md:tracking-[0.3em] font-bold mb-1 md:mb-3 uppercase">
                 EDICIÓN {t.year} · EN CURSO
+              </div>
+              <div className="hidden mb-4">
+                <div className="font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-orange-300 mb-1">
+                  Colegio Marista San José · Morón
+                </div>
+                <div className="text-6xl font-black leading-none text-white">
+                  Papi Fútbol
+                </div>
               </div>
               <h1 className="font-display text-[44px] md:text-[80px] leading-[0.9] mb-3 md:mb-5 uppercase tracking-wide">
                 {t.name.split(' ')[0]}<br />
@@ -259,11 +269,11 @@ export default async function PublicHomePage() {
                     <Link key={m.id} href={`/match/${m.id}`} className="bg-white/5 hover:bg-white/10 p-2.5 flex items-center gap-3 text-xs transition-colors">
                       <div className="font-mono text-white/50 w-10 flex-shrink-0">{m.match_time?.slice(0, 5)}</div>
                       <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <div className="w-2 h-2 flex-shrink-0" style={{ background: m.home_team?.color || '#94a3b8' }} />
+                        <TeamColorSwatch team={m.home_team} className="w-2 h-2 flex-shrink-0" />
                         <span className="flex-1 truncate">{m.home_team?.short_name || m.home_team?.name}</span>
                         <span className="text-white/40 font-mono text-[10px]">vs</span>
                         <span className="flex-1 truncate text-right">{m.away_team?.short_name || m.away_team?.name}</span>
-                        <div className="w-2 h-2 flex-shrink-0" style={{ background: m.away_team?.color || '#94a3b8' }} />
+                        <TeamColorSwatch team={m.away_team} className="w-2 h-2 flex-shrink-0" />
                       </div>
                       <div className="font-mono text-[9px] bg-white/10 px-1.5 py-0.5 flex-shrink-0">C{m.field_number}</div>
                     </Link>
@@ -337,7 +347,7 @@ export default async function PublicHomePage() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate text-slate-800">{name}</div>
                         <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 rounded-sm flex-shrink-0" style={{ background: teamData?.color ?? '#94a3b8' }} />
+                          <TeamColorSwatch team={teamData} className="w-1.5 h-1.5 rounded-sm flex-shrink-0" />
                           <span className="truncate">{teamData?.name}</span>
                         </div>
                       </div>
@@ -393,7 +403,7 @@ export default async function PublicHomePage() {
                           <td className="py-2.5">
                             <Link href={`/team/${r.team_id}`} className="flex items-center gap-2 hover:text-blue-700">
                               {i === 0 && <div className="w-1 h-5 bg-emerald-500 -ml-1 flex-shrink-0" />}
-                              <div className="w-3 h-3 flex-shrink-0" style={{ background: r.color }} />
+                              <TeamColorSwatch team={r} className="w-3 h-3 flex-shrink-0" />
                               <span className="font-semibold text-slate-800">{r.team_name}</span>
                             </Link>
                           </td>
@@ -414,11 +424,9 @@ export default async function PublicHomePage() {
         <footer className="bg-blue-950 text-white py-10">
           <div className="max-w-6xl mx-auto px-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-white flex items-center justify-center">
-                <Trophy className="w-5 h-5 text-blue-900" />
-              </div>
+              <SiteBrandMark size={40} logoUrl={t.logo_url} />
               <div>
-                <div className="font-serif text-lg font-black">Liga.9</div>
+                <div className="text-lg font-black">{t.brand_name ?? 'Papi Fútbol'}</div>
                 <div className="text-[10px] font-mono text-blue-300">{t.name.toUpperCase()} {t.year}</div>
               </div>
             </div>
@@ -461,7 +469,7 @@ export default async function PublicHomePage() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate text-slate-800">{name}</div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                          <div className="w-1.5 h-1.5 rounded-sm" style={{ background: teamData?.color ?? '#94a3b8' }} />
+                          <TeamColorSwatch team={teamData} className="w-1.5 h-1.5 rounded-sm" />
                           <span className="truncate">{teamData?.name}</span>
                         </div>
                       </div>
@@ -513,11 +521,11 @@ function MatchCardHorizontal({ match }: { match: any }) {
       </div>
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: ht?.color || '#94a3b8' }} />
+          <TeamColorSwatch team={ht} className="w-3 h-3 rounded-sm flex-shrink-0" />
           <span className="text-xs font-semibold flex-1 truncate text-slate-800">{ht?.name}</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: at?.color || '#94a3b8' }} />
+          <TeamColorSwatch team={at} className="w-3 h-3 rounded-sm flex-shrink-0" />
           <span className="text-xs font-semibold flex-1 truncate text-slate-800">{at?.name}</span>
         </div>
       </div>

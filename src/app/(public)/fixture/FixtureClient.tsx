@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Clock } from 'lucide-react';
 import { MatchRow } from '@/components/public/MatchRow';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 
 type MatchItem = {
   id: string;
@@ -179,11 +180,11 @@ function MatchUpcomingRow({ match }: { match: MatchItem }) {
         <div className="w-px h-10 bg-slate-100" />
         <div className="flex-1 space-y-2 py-1">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: home?.color || '#94a3b8' }} />
+            <TeamColorSwatch team={home} className="w-3 h-3 rounded-sm flex-shrink-0" />
             <span className="text-sm font-semibold text-slate-900 truncate">{home?.name}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: away?.color || '#94a3b8' }} />
+            <TeamColorSwatch team={away} className="w-3 h-3 rounded-sm flex-shrink-0" />
             <span className="text-sm font-semibold text-slate-900 truncate">{away?.name}</span>
           </div>
         </div>

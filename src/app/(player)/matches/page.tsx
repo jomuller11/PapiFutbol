@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, MapPin, Clock, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { logout } from '@/lib/actions/auth';
 import { LogOut, Trophy } from 'lucide-react';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 
 export default async function MatchesPage() {
   const supabase = await createClient();
@@ -27,11 +28,12 @@ export default async function MatchesPage() {
   let teamId: string | null = null;
   let teamName: string | null = null;
   let teamColor: string | null = null;
+  let teamSecondaryColor: string | null = null;
 
   if (tournament) {
     const { data: memberships } = await supabase
       .from('team_memberships')
-      .select('team:teams!inner(id, name, short_name, color, tournament_id)')
+      .select('team:teams!inner(id, name, short_name, color, secondary_color, tournament_id)')
       .eq('player_id', (player as any).id)
       .limit(10);
 
@@ -42,6 +44,7 @@ export default async function MatchesPage() {
       teamId = (current as any).team.id;
       teamName = (current as any).team.name;
       teamColor = (current as any).team.color;
+      teamSecondaryColor = (current as any).team.secondary_color ?? null;
     }
   }
 
@@ -52,8 +55,8 @@ export default async function MatchesPage() {
       .from('matches')
       .select(`
         id, round_number, match_date, match_time, field_number, status, home_score, away_score,
-        home_team:teams!matches_home_team_id_fkey(id, name, short_name, color),
-        away_team:teams!matches_away_team_id_fkey(id, name, short_name, color),
+        home_team:teams!matches_home_team_id_fkey(id, name, short_name, color, secondary_color),
+        away_team:teams!matches_away_team_id_fkey(id, name, short_name, color, secondary_color),
         observer_team:teams!matches_observer_team_id_fkey(name),
         group:groups!matches_group_id_fkey(name)
       `)
@@ -106,7 +109,11 @@ export default async function MatchesPage() {
         {teamName ? (
           <div
             className="p-4 flex items-center gap-3 text-white"
-            style={{ backgroundColor: teamColor ?? '#1e3a8a' }}
+            style={{
+              background: teamSecondaryColor
+                ? `linear-gradient(135deg, ${teamColor ?? '#1e3a8a'} 0%, ${teamColor ?? '#1e3a8a'} 50%, ${teamSecondaryColor} 50%, ${teamSecondaryColor} 100%)`
+                : teamColor ?? '#1e3a8a',
+            }}
           >
             <div className="flex-1">
               <div className="font-mono text-[10px] tracking-widest opacity-80 uppercase mb-0.5">
@@ -244,7 +251,7 @@ function MatchCard({
 function TeamLine({ team, bold }: { team: any; bold?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-2.5 h-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: team?.color ?? '#94a3b8' }} />
+      <TeamColorSwatch team={team} className="w-2.5 h-2.5 flex-shrink-0 rounded-sm" />
       <span className={`text-sm truncate ${bold ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
         {team?.name ?? '—'}
       </span>

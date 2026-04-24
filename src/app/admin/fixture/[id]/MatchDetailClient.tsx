@@ -7,6 +7,7 @@ import {
   ArrowLeft, Save, Target, Square, Eye, Calendar,
   MapPin, Clock, Trash2, AlertCircle, RotateCcw, Check, Plus,
 } from 'lucide-react';
+import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import {
   saveMatchResult, reopenMatch, updateMatchDetails,
   addMatchGoal, removeMatchGoal, addMatchCard, removeMatchCard,
@@ -66,7 +67,7 @@ export function MatchDetailClient({ match }: { match: MatchDetailData }) {
             <div className="text-right">
               <div className="flex items-center justify-end gap-2 mb-1">
                 <span className="font-serif text-2xl font-bold">{match.home_team.name}</span>
-                <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: match.home_team.color }} />
+                <TeamColorSwatch team={match.home_team} className="w-3 h-3 rounded-sm flex-shrink-0" />
               </div>
               <div className="font-mono text-[10px] text-blue-300 tracking-widest uppercase">LOCAL</div>
             </div>
@@ -83,7 +84,7 @@ export function MatchDetailClient({ match }: { match: MatchDetailData }) {
             </div>
             <div className="text-left">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: match.away_team.color }} />
+                <TeamColorSwatch team={match.away_team} className="w-3 h-3 rounded-sm flex-shrink-0" />
                 <span className="font-serif text-2xl font-bold">{match.away_team.name}</span>
               </div>
               <div className="font-mono text-[10px] text-blue-300 tracking-widest uppercase">VISITANTE</div>
@@ -432,10 +433,7 @@ function GoalsSection({ match }: { match: MatchDetailData }) {
           const busy = activeId === g.id && isPending;
           return (
             <div key={g.id} className={`flex items-center gap-3 px-4 py-2.5 text-xs transition-opacity ${busy ? 'opacity-40' : ''}`}>
-              <div
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: g.team?.color ?? '#94a3b8' }}
-              />
+              <TeamColorSwatch team={g.team} className="w-2 h-2 rounded-full flex-shrink-0" />
               <span className="font-medium text-slate-800 flex-1 truncate">
                 {g.player?.first_name} {g.player?.last_name}
                 {g.is_own_goal && <span className="text-red-500 ml-1">(en contra)</span>}

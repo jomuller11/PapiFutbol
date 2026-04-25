@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 import { ShieldAlert } from 'lucide-react';
 
 export const metadata = {
@@ -37,15 +38,18 @@ export default async function SanctionsPage() {
     .from('match_cards')
     .select(`
       type, player_id, team_id,
-      player:players!match_cards_player_id_fkey(id, first_name, last_name, nickname),
+      player:players!match_cards_player_id_fkey(id, first_name, last_name, nickname, avatar_url),
       team:teams!match_cards_team_id_fkey(id, name, color, secondary_color),
-      match:matches!match_cards_match_id_fkey(tournament_id)
+      match:matches!match_cards_match_id_fkey!inner(tournament_id)
     `)
     .eq('match.tournament_id', (tournament as any).id);
 
   const sanctions = new Map<string, {
     player_id: string;
     player_name: string;
+    first_name: string | null;
+    last_name: string | null;
+    avatar_url: string | null;
     team_id: string | null;
     team_name: string;
     color: string;
@@ -61,6 +65,9 @@ export default async function SanctionsPage() {
     const existing = sanctions.get(card.player_id) ?? {
       player_id: card.player_id,
       player_name: card.player.nickname || `${card.player.first_name} ${card.player.last_name}`,
+      first_name: card.player.first_name ?? null,
+      last_name: card.player.last_name ?? null,
+      avatar_url: card.player.avatar_url ?? null,
       team_id: card.team?.id ?? null,
       team_name: card.team?.name ?? 'Sin equipo',
       color: card.team?.color ?? '#94a3b8',
@@ -121,11 +128,20 @@ export default async function SanctionsPage() {
                   className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center px-3 py-3 gap-3 hover:bg-slate-50 transition-colors"
                 >
                   <div className="w-5 text-center font-mono text-xs text-slate-400 font-bold">{index + 1}</div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-xs text-slate-900 truncate">{row.player_name}</div>
-                    <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                      <TeamColorSwatch team={row} className="w-2.5 h-2.5 rounded-full flex-shrink-0" />
-                      <span className="text-[11px] text-slate-500 truncate">{row.team_name}</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <PlayerAvatar
+                      firstName={row.first_name}
+                      lastName={row.last_name}
+                      avatarUrl={row.avatar_url}
+                      className="w-8 h-8 rounded-full"
+                      textClassName="bg-red-50 text-red-900 text-[10px] font-semibold"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-semibold text-xs text-slate-900 truncate">{row.player_name}</div>
+                      <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                        <TeamColorSwatch team={row} className="w-2.5 h-2.5 rounded-full flex-shrink-0" />
+                        <span className="text-[11px] text-slate-500 truncate">{row.team_name}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="w-6 text-center font-mono text-xs text-slate-500">{row.yellow || '—'}</div>

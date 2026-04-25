@@ -421,18 +421,58 @@ function CupSection({ bracket }: { bracket: BracketData }) {
  
       {/* Bracket: 8 equipos = layout especial estilo torneo. Otros = fallback en columnas */}
       {bracket.teams_count === 8 && totalRounds === 3 ? (
-        <DesktopEightTeamBracket bracket={bracket} />
+        <>
+          <MobileBracketRounds bracket={bracket} />
+          <DesktopEightTeamBracket bracket={bracket} />
+        </>
       ) : (
         <FallbackBracket bracket={bracket} />
       )}
  
-      {/* Versión mobile siempre fallback (más legible) */}
-      {bracket.teams_count === 8 && totalRounds === 3 && (
-        <div className="lg:hidden">
-          <FallbackBracket bracket={bracket} />
-        </div>
-      )}
     </section>
+  );
+}
+
+function MobileBracketRounds({ bracket }: { bracket: BracketData }) {
+  const totalRounds = bracket.rounds.length;
+
+  return (
+    <div className="lg:hidden divide-y divide-slate-100">
+      {bracket.rounds.map((roundMatches, roundIndex) => {
+        const ties = groupTies(roundMatches);
+        const stats = getRoundStats(roundMatches);
+
+        return (
+          <div key={roundIndex} className="px-4 py-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="liga-mono text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  {roundName(roundIndex + 1, totalRounds)}
+                </div>
+                <div className="mt-0.5 text-[11px] font-medium text-slate-400">
+                  {ties.length} {ties.length === 1 ? 'cruce' : 'cruces'}
+                </div>
+              </div>
+              <div className="liga-mono text-[10px] font-bold text-slate-500">
+                {stats.played}/{stats.total}
+              </div>
+            </div>
+
+            {ties.length > 0 ? (
+              <div className="space-y-3">
+                {ties.map((tie) => (
+                  <TieCard key={tie.position} tie={tie} isFinal={roundIndex === totalRounds - 1} />
+                ))}
+              </div>
+            ) : (
+              <div className="border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-400">
+                Sin cruces cargados
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
  

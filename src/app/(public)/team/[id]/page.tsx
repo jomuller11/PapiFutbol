@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 import { isLightColor } from '@/lib/constants';
 import { Shield, MapPin, Clock, Target, Star } from 'lucide-react';
 
@@ -153,13 +154,13 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                     <div className="w-7 text-right font-mono text-xs text-slate-400 flex-shrink-0">
                       {m.jersey_number != null ? `#${m.jersey_number}` : '—'}
                     </div>
-                    {p.avatar_url ? (
-                      <img src={p.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-xs font-semibold text-blue-800">
-                        {p.first_name?.[0]}{p.last_name?.[0]}
-                      </div>
-                    )}
+                    <PlayerAvatar
+                      firstName={p.first_name}
+                      lastName={p.last_name}
+                      avatarUrl={p.avatar_url}
+                      className="w-8 h-8 rounded-full"
+                      textClassName="bg-blue-100 text-blue-800 text-xs font-semibold"
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium text-slate-800 truncate">

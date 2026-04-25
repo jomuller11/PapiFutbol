@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Zap } from 'lucide-react';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 export const metadata = {
   title: 'Goleadores — Liga.9',
@@ -37,7 +38,7 @@ export default async function ScorersPage() {
         profile:profiles!players_profile_id_fkey(email)
       ),
       team:teams!match_goals_team_id_fkey(name, color, secondary_color),
-      match:matches!match_goals_match_id_fkey(tournament_id)
+      match:matches!match_goals_match_id_fkey!inner(tournament_id)
     `)
     .eq('match.tournament_id', (tournament as any).id)
     .eq('is_own_goal', false);
@@ -96,13 +97,15 @@ export default async function ScorersPage() {
               const heightClass = idx === 0 ? heights[0] : idx === 1 ? heights[1] : heights[2];
               
               const name = s.player?.nickname || `${s.player?.first_name} ${s.player?.last_name}`;
-              const initials = (s.player?.first_name?.[0] || '') + (s.player?.last_name?.[0] || '');
-
               return (
                 <Link key={s.player?.id ?? pos} href={s.player?.id ? `/player/${s.player.id}` : '#'} className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-full bg-white mb-2 flex items-center justify-center font-display text-blue-900 text-lg shadow-sm">
-                    {initials.slice(0, 2)}
-                  </div>
+                  <PlayerAvatar
+                    firstName={s.player?.first_name}
+                    lastName={s.player?.last_name}
+                    avatarUrl={s.player?.avatar_url}
+                    className="w-14 h-14 rounded-full mb-2 shadow-sm"
+                    textClassName="bg-white text-blue-900 text-lg font-display"
+                  />
                   <div className="text-xs font-semibold text-center leading-tight truncate w-full px-1">{name}</div>
                   <div className="text-[10px] text-blue-200 mb-2 truncate w-full text-center">{s.team?.name}</div>
                   <div className={`w-full ${heightClass} flex flex-col items-center justify-center shadow-md ${
@@ -129,6 +132,13 @@ export default async function ScorersPage() {
               }`}>
                 {i + 1}
               </div>
+              <PlayerAvatar
+                firstName={s.player?.first_name}
+                lastName={s.player?.last_name}
+                avatarUrl={s.player?.avatar_url}
+                className="w-10 h-10 rounded-full"
+                textClassName="bg-blue-100 text-blue-900 text-xs font-semibold"
+              />
               <div className="flex-1 min-w-0 text-left">
                 <div className="font-semibold text-sm truncate text-slate-900">
                   {name} {s.player?.nickname && <span className="text-slate-400 text-xs font-medium">"{s.player.nickname}"</span>}

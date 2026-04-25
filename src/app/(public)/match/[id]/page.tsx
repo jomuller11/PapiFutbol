@@ -46,7 +46,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     .from('match_goals')
     .select(`
       id, minute, is_own_goal, team_id,
-      player:players!match_goals_player_id_fkey(first_name, last_name, nickname)
+      player:players!match_goals_player_id_fkey(id, first_name, last_name, nickname, avatar_url)
     `)
     .eq('match_id', id)
     .order('minute', { ascending: true });
@@ -56,7 +56,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     .from('match_cards')
     .select(`
       id, minute, type, team_id,
-      player:players!match_cards_player_id_fkey(first_name, last_name, nickname)
+      player:players!match_cards_player_id_fkey(id, first_name, last_name, nickname, avatar_url)
     `)
     .eq('match_id', id)
     .order('minute', { ascending: true });

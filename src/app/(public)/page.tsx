@@ -7,6 +7,7 @@ import {
 import { MatchRow } from '@/components/public/MatchRow';
 import { SiteBrand, SiteBrandMark } from '@/components/branding/SiteBrand';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 export const metadata = {
   title: 'Liga.9 — Torneo de Fútbol 9',
@@ -74,7 +75,7 @@ export default async function PublicHomePage() {
 
       supabase
         .from('match_goals')
-        .select(`player_id, match:matches!match_goals_match_id_fkey(tournament_id)`)
+        .select(`player_id, match:matches!match_goals_match_id_fkey!inner(tournament_id)`)
         .eq('match.tournament_id', (tournament as any).id)
         .eq('is_own_goal', false),
 
@@ -108,7 +109,7 @@ export default async function PublicHomePage() {
   if (topScorerIds.length > 0) {
     const { data: players } = await supabase
       .from('players')
-      .select('id, first_name, last_name, nickname, position, team_memberships(team:teams(name, color, secondary_color))')
+      .select('id, first_name, last_name, nickname, position, avatar_url, team_memberships(team:teams(name, color, secondary_color))')
       .in('id', topScorerIds.map(s => s.id));
     topScorers = topScorerIds.map(({ id, cnt }) => ({
       ...(players?.find((p: any) => p.id === id) as any),
@@ -344,6 +345,13 @@ export default async function PublicHomePage() {
                       }`}>
                         {i + 1}
                       </div>
+                      <PlayerAvatar
+                        firstName={s.first_name}
+                        lastName={s.last_name}
+                        avatarUrl={s.avatar_url}
+                        className="w-9 h-9 rounded-full"
+                        textClassName="bg-blue-100 text-blue-900 text-xs font-semibold"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate text-slate-800">{name}</div>
                         <div className="text-[10px] text-slate-500 flex items-center gap-1">
@@ -466,6 +474,13 @@ export default async function PublicHomePage() {
                       }`}>
                         {i + 1}
                       </div>
+                      <PlayerAvatar
+                        firstName={s.first_name}
+                        lastName={s.last_name}
+                        avatarUrl={s.avatar_url}
+                        className="w-9 h-9 rounded-full"
+                        textClassName="bg-blue-100 text-blue-900 text-xs font-semibold"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate text-slate-800">{name}</div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Shield, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { Zap } from 'lucide-react';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 import { getPenaltyScore, getVisibleMatchNotes } from '@/lib/utils/match-notes';
 
 export function MatchDetailClient({ match, goals, cards }: { match: any, goals: any[], cards: any[] }) {
@@ -12,7 +14,7 @@ export function MatchDetailClient({ match, goals, cards }: { match: any, goals: 
   const penalties = getPenaltyScore(match.notes);
   const visibleNotes = getVisibleMatchNotes(match.notes);
   
-  const events = [...goals, ...cards].sort((a, b) => a.minute - b.minute);
+  const events = [...goals, ...cards].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
 
   return (
     <div className="bg-slate-50 min-h-screen pb-8">
@@ -40,8 +42,41 @@ export function MatchDetailClient({ match, goals, cards }: { match: any, goals: 
             ) : (
               events.map((e, i) => {
                 const isHome = e.team_id === ht.id;
-                const pName = e.player?.nickname || `${e.player?.first_name} ${e.player?.last_name}` || 'Desconocido';
+                const fullName = [e.player?.first_name, e.player?.last_name].filter(Boolean).join(' ');
+                const pName = e.player?.nickname || fullName || 'Desconocido';
                 const isGoal = 'is_own_goal' in e;
+                const playerLine = (
+                  <div className={`flex items-center gap-2 ${isHome ? 'justify-end' : ''}`}>
+                    {isHome ? null : (
+                      <PlayerAvatar
+                        firstName={e.player?.first_name}
+                        lastName={e.player?.last_name}
+                        avatarUrl={e.player?.avatar_url}
+                        className="w-7 h-7 rounded-full"
+                        textClassName="bg-slate-100 text-slate-700 text-[9px] font-semibold"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      {e.player?.id ? (
+                        <Link href={`/player/${e.player.id}`} className="font-semibold text-sm text-slate-900 hover:text-blue-700">
+                          {pName}
+                        </Link>
+                      ) : (
+                        <div className="font-semibold text-sm text-slate-900">{pName}</div>
+                      )}
+                      {isGoal && e.is_own_goal && <div className="text-[10px] text-slate-400">Gol en contra</div>}
+                    </div>
+                    {isHome ? (
+                      <PlayerAvatar
+                        firstName={e.player?.first_name}
+                        lastName={e.player?.last_name}
+                        avatarUrl={e.player?.avatar_url}
+                        className="w-7 h-7 rounded-full"
+                        textClassName="bg-slate-100 text-slate-700 text-[9px] font-semibold"
+                      />
+                    ) : null}
+                  </div>
+                );
                 
                 return (
                   <div key={`${isGoal ? 'g' : 'c'}-${e.id}`} className="flex items-center px-4 py-3 border-b border-slate-50 last:border-0 relative">
@@ -51,8 +86,7 @@ export function MatchDetailClient({ match, goals, cards }: { match: any, goals: 
                     {isHome ? (
                       <>
                         <div className="flex-1 text-right pr-4 relative z-10">
-                          <div className="font-semibold text-sm text-slate-900">{pName}</div>
-                          {isGoal && e.is_own_goal && <div className="text-[10px] text-slate-400">Gol en contra</div>}
+                          {playerLine}
                         </div>
                         <div className="w-8 flex justify-center relative z-10 bg-white">
                           <EventIcon event={e} isGoal={isGoal} />
@@ -66,8 +100,7 @@ export function MatchDetailClient({ match, goals, cards }: { match: any, goals: 
                           <EventIcon event={e} isGoal={isGoal} />
                         </div>
                         <div className="flex-1 pl-4 relative z-10">
-                          <div className="font-semibold text-sm text-slate-900">{pName}</div>
-                          {isGoal && e.is_own_goal && <div className="text-[10px] text-slate-400">Gol en contra</div>}
+                          {playerLine}
                         </div>
                       </>
                     )}

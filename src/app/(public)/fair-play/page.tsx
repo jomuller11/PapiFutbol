@@ -42,7 +42,7 @@ export default async function FairPlayPage() {
     .select(`
       type, team_id,
       team:teams!match_cards_team_id_fkey(id, name, color, secondary_color),
-      match:matches!match_cards_match_id_fkey(tournament_id)
+      match:matches!match_cards_match_id_fkey!inner(tournament_id)
     `)
     .eq('match.tournament_id', (tournament as any).id);
 

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 import { Target, MapPin, Clock } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -119,7 +120,6 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
   }
 
   const displayName = p.nickname || `${p.first_name} ${p.last_name}`;
-  const initials = `${p.first_name?.[0] ?? ''}${p.last_name?.[0] ?? ''}`;
 
   return (
     <div className="bg-slate-50 min-h-screen pb-8 md:max-w-3xl md:mx-auto">
@@ -129,17 +129,14 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
       <div className="bg-blue-900 px-4 pt-6 pb-5 relative overflow-hidden">
         <div className="absolute inset-0 stadium-grid opacity-20" />
         <div className="relative flex items-center gap-4">
-          {p.avatar_url ? (
-            <img
-              src={p.avatar_url}
-              alt={displayName}
-              className="w-20 h-20 rounded-full object-cover border-2 border-white/30 flex-shrink-0"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-white/15 border-2 border-white/30 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
-              {initials}
-            </div>
-          )}
+          <PlayerAvatar
+            firstName={p.first_name}
+            lastName={p.last_name}
+            avatarUrl={p.avatar_url}
+            alt={displayName}
+            className="w-20 h-20 rounded-full border-2 border-white/30"
+            textClassName="bg-white/15 text-white text-2xl font-bold"
+          />
           <div className="flex-1 min-w-0">
             <div className="font-serif text-2xl font-bold text-white leading-tight truncate">
               {p.first_name} {p.last_name}

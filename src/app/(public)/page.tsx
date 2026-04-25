@@ -8,6 +8,7 @@ import { MatchRow } from '@/components/public/MatchRow';
 import { SiteBrand, SiteBrandMark } from '@/components/branding/SiteBrand';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const metadata = {
   title: 'Liga.9 — Torneo de Fútbol 9',
@@ -21,6 +22,7 @@ type HomeStandingRow = {
 
 export default async function PublicHomePage() {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   const { data: tournament } = await supabase
     .from('tournaments')
@@ -73,7 +75,7 @@ export default async function PublicHomePage() {
         .order('match_time', { ascending: true })
         .limit(4),
 
-      supabase
+      adminSupabase
         .from('match_goals')
         .select(`player_id, match:matches!match_goals_match_id_fkey!inner(tournament_id)`)
         .eq('match.tournament_id', (tournament as any).id)
@@ -107,7 +109,7 @@ export default async function PublicHomePage() {
 
   let topScorers: any[] = [];
   if (topScorerIds.length > 0) {
-    const { data: players } = await supabase
+    const { data: players } = await adminSupabase
       .from('players')
       .select('id, first_name, last_name, nickname, position, avatar_url, team_memberships(team:teams(name, color, secondary_color))')
       .in('id', topScorerIds.map(s => s.id));

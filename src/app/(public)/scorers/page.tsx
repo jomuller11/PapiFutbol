@@ -4,6 +4,7 @@ import { Zap } from 'lucide-react';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const metadata = {
   title: 'Goleadores — Liga.9',
@@ -12,6 +13,7 @@ export const metadata = {
 
 export default async function ScorersPage() {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   const { data: tournament } = await supabase
     .from('tournaments')
@@ -29,7 +31,7 @@ export default async function ScorersPage() {
   }
 
   // Goles por jugador (sin goles en contra propios)
-  const { data: goals } = await supabase
+  const { data: goals } = await adminSupabase
     .from('match_goals')
     .select(`
       player_id, is_own_goal,

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { ShieldAlert } from 'lucide-react';
 
 export const metadata = {
@@ -18,6 +19,7 @@ const CARD_POINTS: Record<string, number> = {
 
 export default async function SanctionsPage() {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   const { data: tournament } = await supabase
     .from('tournaments')
@@ -34,7 +36,7 @@ export default async function SanctionsPage() {
     );
   }
 
-  const { data: cards } = await supabase
+  const { data: cards } = await adminSupabase
     .from('match_cards')
     .select(`
       type, player_id, team_id,

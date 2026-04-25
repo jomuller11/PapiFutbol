@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound } from 'next/navigation';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { MatchDetailClient } from './MatchDetailClient';
@@ -27,6 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   const { data: match } = await supabase
     .from('matches')
@@ -42,7 +44,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   if (!match) notFound();
 
   // Goles del partido
-  const { data: goals } = await supabase
+  const { data: goals } = await adminSupabase
     .from('match_goals')
     .select(`
       id, minute, is_own_goal, team_id,
@@ -52,7 +54,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     .order('minute', { ascending: true });
 
   // Tarjetas del partido
-  const { data: cards } = await supabase
+  const { data: cards } = await adminSupabase
     .from('match_cards')
     .select(`
       id, minute, type, team_id,

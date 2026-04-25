@@ -1,14 +1,15 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 import { Target, MapPin, Clock } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data } = await supabase
+  const adminSupabase = createAdminClient();
+  const { data } = await adminSupabase
     .from('players')
     .select('first_name, last_name, nickname')
     .eq('id', id)
@@ -28,8 +29,9 @@ const CARD_STYLE: Record<string, { label: string; color: string; bg: string }> =
 export default async function PlayerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
-  const { data: player } = await supabase
+  const { data: player } = await adminSupabase
     .from('players')
     .select('id, first_name, last_name, nickname, position, foot, score, avatar_url')
     .eq('id', id)
@@ -54,7 +56,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
   if (tournament) {
     const tid = (tournament as any).id as string;
 
-    const { data: memberships } = await supabase
+    const { data: memberships } = await adminSupabase
       .from('team_memberships')
       .select('team:teams!inner(id, name, short_name, color, tournament_id)')
       .eq('player_id', id)
@@ -86,7 +88,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
 
     if (matchIds.length > 0) {
       const [goalsRes, cardsRes] = await Promise.all([
-        supabase
+        adminSupabase
           .from('match_goals')
           .select(`
             id, minute, is_own_goal,
@@ -100,7 +102,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
           .in('match_id', matchIds)
           .order('minute', { ascending: true, nullsFirst: false }),
 
-        supabase
+        adminSupabase
           .from('match_cards')
           .select(`
             id, type, minute,

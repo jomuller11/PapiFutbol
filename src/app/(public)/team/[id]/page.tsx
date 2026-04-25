@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
@@ -23,6 +24,7 @@ const POSITION_LABELS: Record<string, string> = {
 export default async function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   const { data: team } = await supabase
     .from('teams')
@@ -41,7 +43,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
   const shieldClass = usesLightHeader ? 'text-slate-950' : 'text-white';
 
   const [rosterRes, matchesRes, groupTeamRes] = await Promise.all([
-    supabase
+    adminSupabase
       .from('team_memberships')
       .select('id, jersey_number, is_captain, player:players(id, first_name, last_name, nickname, position, score, avatar_url)')
       .eq('team_id', id)

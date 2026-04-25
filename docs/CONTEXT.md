@@ -1,223 +1,375 @@
-# Liga.9 — Contexto del Proyecto
+# Liga.9 - Estado tecnico del proyecto
 
-> **Este archivo es el "contrato" del proyecto.**
-> Cualquier agente (humano o AI) que trabaje en este codebase **DEBE** leer esto antes de generar código.
-> Si algo acá contradice otra fuente (mockups viejos, sugerencias de agentes, tutoriales), **este archivo gana**.
+Ultima actualizacion: 2026-04-25.
 
----
+Este documento es el handoff principal del proyecto. Cualquier persona o AI que entre al repo deberia leerlo antes de tocar codigo. Resume que es el producto, como esta armado, que decisiones ya se tomaron, que se arreglo recientemente y que pasos siguen.
 
-## 🎯 Qué es Liga.9
+## 1. Producto
 
-Sistema de administración de torneos de fútbol 9 del colegio.
+Liga.9 es una plataforma para administrar y publicar torneos de futbol 9 del colegio.
 
-- **Escala**: hasta 24 equipos × 12 jugadores = 288 jugadores activos por torneo.
-- **Un torneo activo por año calendario** (constraint real en DB).
-- **3 tipos de usuarios**: administrador principal, colaboradores (staff), jugadores.
-- **Público general** (hinchas/familias) consulta sin login.
+Audiencias:
 
----
+- Publico general: consulta fixture, resultados, tabla, goleadores, sanciones, fair play, equipos, jugadores y bracket sin login.
+- Jugadores: se registran, completan perfil, suben foto, ven sus partidos y estadisticas.
+- Staff/admin: administran jugadores, aprobaciones, equipos, sorteo, fixture, partidos, goles, tarjetas, staff y torneo.
 
-## 🎨 Paleta visual — OBLIGATORIA
+Reglas de dominio ya asumidas:
 
-**Light theme institucional.** No usar tema oscuro ni colores fluorescentes.
+- Escala objetivo: hasta 24 equipos x 12 jugadores.
+- Un torneo activo por anio calendario.
+- Puntaje de jugador: 1 a 15. `null` significa no asignado.
+- Posiciones: `ARQ`, `DFC`, `LAT`, `MCC`, `MCO`, `EXT`, `DEL`.
+- Pie habil: `derecho`, `izquierdo`, `ambidiestro`.
+- Tarjetas: `yellow`, `red`, `blue`. La azul suma fair play como amarilla y representa 5 minutos fuera.
+- Inscripciones: flujo `pending` -> `approved` / `rejected` / `waitlist`.
 
-| Rol | Color | Hex | Tailwind | HSL (globals.css) |
-|---|---|---|---|---|
-| Primario | Azul marino | `#1e3a8a` | `blue-900` / `brand-blue` | `225 70% 33%` |
-| Acento | Naranja | `#ea580c` | `orange-600` / `brand-orange` | `21 90% 48%` |
-| Éxito | Verde esmeralda | `#059669` | `emerald-600` | — |
-| Advertencia | Ámbar | `#f59e0b` | `amber-500` | — |
-| Error | Rojo | `#dc2626` | `red-600` | — |
-| Fondo | Blanco / slate claro | `#f8fafc` | `slate-50` | `0 0% 100%` |
-| Texto | Slate oscuro | `#0f172a` | `slate-900` | `222 47% 11%` |
-| Borde | Slate claro | `#e2e8f0` | `slate-200` | `214 32% 91%` |
+## 2. Stack
 
-**Prohibido** usar en el panel admin/player:
-- `bg-neutral-950`, `bg-black`, `bg-zinc-900` → NO. Light theme.
-- `text-lime-400`, `bg-lime-400` → NO. Usar `text-orange-600` / `bg-orange-500`.
-- Cualquier combinación de fondo oscuro + texto claro.
+- Framework: Next.js 15 App Router.
+- Runtime UI: React 19.
+- Lenguaje: TypeScript.
+- Base de datos/Auth/Storage: Supabase.
+- UI: Tailwind CSS, shadcn/ui, Radix, lucide-react.
+- Formularios: react-hook-form + zod.
+- Hosting actual: AWS Amplify.
+- Repo remoto: GitHub `jomuller11/PapiFutbol`.
+- Rama activa: `main`.
+- Dominio de produccion actual: `https://main.d3oq0bto5l3dl0.amplifyapp.com`.
 
-**La vista pública sí usa gradientes y tonos más saturados** (es más editorial), pero nunca tema oscuro global.
+Scripts importantes:
 
----
-
-## 🔤 Tipografías
-
-| Familia | Uso |
-|---|---|
-| **Inter** | Cuerpo general, labels, tablas |
-| **Fraunces** (serif) | Títulos de sección, headers, números destacados |
-| **Anton** | Display deportivo (solo vista pública) |
-| **JetBrains Mono** | Labels pequeños, datos técnicos, números de ranking |
-
-Ya están configuradas en `tailwind.config.ts` como `font-sans`, `font-serif`, `font-display`, `font-mono`.
-
----
-
-## ⚙️ Reglas de datos del dominio
-
-Estas no son opiniones, son reglas del negocio:
-
-- **Puntaje del jugador**: rango **1 a 15** (no 0-100, no 1-10). Null = aún no asignado.
-- **Torneo**: solo UNO activo por año calendario.
-- **Posiciones (fútbol 9)**: `ARQ`, `DFC`, `LAT`, `MCC`, `MCO`, `EXT`, `DEL`.
-- **Pie hábil**: `derecho`, `izquierdo`, `ambidiestro`.
-- **Tarjetas**: `yellow`, `red`, `blue`. La **azul** es distintiva de este torneo: suma 1 punto fair play como la amarilla, equivale a 5 minutos fuera, no acumula para suspensión.
-- **Referencia del jugador** (vínculo con el colegio): `padre_alumno`, `padre_ex_alumno`, `ex_alumno`, `docente_colegio`, `invitado`, `hermano_marista`, `esposo_educadora`, `abuelo_alumno`.
-- **Veedor**: un equipo distinto al que juega observa el partido. Sugerencia automática: equipo que juega en la misma cancha en horario adyacente, con posibilidad de cambio manual.
-- **Inscripción al torneo**: siempre requiere **aprobación del admin** antes de quedar confirmada. Estados: `pending` → `approved` / `rejected` / `waitlist`.
-
----
-
-## 🛠️ Stack y patrones de código
-
-### Stack fijo (no cambiar)
-- Next.js 15 (App Router) + React 19
-- TypeScript estricto
-- Supabase (Postgres + Auth + Storage)
-- shadcn/ui + Tailwind CSS
-- lucide-react para iconos
-- react-hook-form + zod para formularios
-- pnpm como gestor
-
-### Patrones de código
-
-**1. Nunca usar datos mock después del M1.** Si una página necesita datos, consulta Supabase. Si todavía no hay un flujo para cargar esos datos, se crea antes o se deja un estado `empty` claramente marcado como pantalla vacía, no un `MOCK_PLAYERS` hardcodeado.
-
-**2. Server Components por default.** Solo marcar `'use client'` cuando haya interactividad real (hooks, eventos, estado local).
-
-**3. Data fetching desde Server Components** usando `createClient()` de `@/lib/supabase/server`:
-
-```tsx
-// ✅ Correcto
-export default async function PlayersPage() {
-  const supabase = await createClient();
-  const { data: players } = await supabase
-    .from('players')
-    .select('*, profiles(email)')
-    .order('last_name');
-
-  return <PlayersTable players={players ?? []} />;
-}
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+npm run types:db
 ```
 
-**4. Mutations con Server Actions** en `src/lib/actions/*.ts`, siempre con validación Zod y retorno tipado:
+Nota: aunque hay `pnpm-lock.yaml`, el deploy actual de Amplify usa `npm install --legacy-peer-deps` y `npm run build`.
 
-```tsx
-// ✅ Patrón obligatorio
-'use server';
+## 3. Estructura relevante
 
-const SomeSchema = z.object({ ... });
+Rutas principales:
 
-export type ActionResult = {
-  success: boolean;
-  error?: string;
-  fieldErrors?: Record<string, string[]>;
-};
+- `src/app/(public)` - sitio publico mobile-first.
+- `src/app/(auth)` - login y registro.
+- `src/app/(player)` - experiencia del jugador logueado.
+- `src/app/admin` - panel administrativo.
 
-export async function someAction(formData: FormData): Promise<ActionResult> {
-  const parsed = SomeSchema.safeParse({ ... });
-  if (!parsed.success) {
-    return { success: false, fieldErrors: parsed.error.flatten().fieldErrors };
-  }
+Supabase:
 
-  const supabase = await createClient();
-  // ... lógica
-  revalidatePath('/ruta/afectada');
-  return { success: true };
-}
+- `src/lib/supabase/client.ts` - cliente para componentes cliente.
+- `src/lib/supabase/server.ts` - cliente SSR con cookies.
+- `src/lib/supabase/admin.ts` - cliente server-only con service role.
+- `src/lib/supabase/middleware.ts` - refresh/proteccion de sesion.
+
+Server actions:
+
+- `src/lib/actions/auth.ts`
+- `src/lib/actions/players.ts`
+- `src/lib/actions/teams.ts`
+- `src/lib/actions/tournament.ts`
+- `src/lib/actions/matches.ts`
+- `src/lib/actions/brackets.ts`
+- `src/lib/actions/approvals.ts`
+- `src/lib/actions/staff.ts`
+- `src/lib/actions/admin.ts`
+
+Migraciones:
+
+- `supabase/migrations/20260420000001_initial_schema.sql`
+- `supabase/migrations/20260424000100_add_tournament_branding.sql`
+- `supabase/migrations/20260424000200_add_team_secondary_color.sql`
+
+Documentacion adicional:
+
+- `docs/00-architecture.md` - arquitectura original y roadmap historico.
+- `README.md` - setup inicial.
+
+## 4. Modelo de datos
+
+Tablas principales:
+
+- `profiles`: extension de `auth.users`, contiene `role`.
+- `players`: datos del jugador, posicion, puntaje, referencia, foto.
+- `tournaments`: torneos.
+- `phases`: fases.
+- `groups`: zonas.
+- `brackets`: llaves.
+- `teams`: equipos, colores, branding.
+- `group_teams`: pertenencia de equipos a zonas.
+- `player_tournament_registrations`: inscripciones.
+- `team_memberships`: planteles.
+- `matches`: partidos.
+- `match_goals`: goles.
+- `match_cards`: tarjetas.
+- `notifications`: notificaciones.
+- `staff_invitations`: invitaciones.
+
+Views relevantes:
+
+- `v_players_public`: subset publico de jugadores.
+- `v_player_stats`: estadisticas agregadas.
+- `v_standings`: tabla agregada.
+
+Observacion importante sobre datos publicos de jugadores:
+
+- La tabla `players` esta protegida por RLS y no es legible para anon.
+- `v_players_public` existe, pero actualmente esta creada con `security_invoker = on`, por lo que anon sigue sin poder leer filas si RLS de `players` lo impide.
+- Por eso, algunas paginas publicas SSR usan `createAdminClient()` en servidor para leer solo campos seguros de jugadores y renderizarlos sin exponer la service role al cliente.
+- Deuda recomendada: crear una migracion para que la vista publica funcione correctamente sin depender del service role en rutas publicas.
+
+## 5. Seguridad
+
+Principio general:
+
+- RLS en Supabase es la barrera de seguridad real.
+- La service role nunca debe importarse en componentes cliente.
+- `src/lib/supabase/admin.ts` importa `server-only` y valida que existan variables de entorno.
+
+Roles:
+
+- `player`: gestiona su perfil y ve su informacion.
+- `staff`: puede administrar partidos, goles, tarjetas, jugadores y aprobaciones.
+- `admin`: controla torneo, staff y configuracion.
+
+Storage:
+
+- Bucket `avatars`: publico para lectura. Usado para fotos de jugadores.
+- Bucket `team-logos`: usado por acciones de equipos/torneo. Si falta, las acciones muestran error indicando crearlo como publico con limite 2MB.
+
+Variables requeridas:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_PROJECT_ID=
+NEXT_PUBLIC_SITE_URL=
 ```
 
-**5. Nombres de DB en `snake_case`** (`first_name`, `birth_date`, `created_at`). Nombres de JS en `camelCase` (`firstName`, `birthDate`, `createdAt`). Hacer el mapeo explícito al insertar/leer.
+No commitear secretos. `.env.local` queda local.
 
-**6. RLS es la seguridad real.** Nunca bypassear con `SUPABASE_SERVICE_ROLE_KEY` en operaciones de usuario. Solo usar service role para scripts administrativos muy puntuales (ej. promover al primer admin).
+## 6. Deploy actual
 
-**7. Usar los types generados.** `src/types/database.ts` está auto-generado desde Supabase. Importar tipos desde ahí, no inventar interfaces paralelas.
+Hosting actual: AWS Amplify.
 
----
+App:
 
-## 📁 Estructura de rutas
+- appId: `d3oq0bto5l3dl0`
+- branch: `main`
+- dominio: `https://main.d3oq0bto5l3dl0.amplifyapp.com`
 
-- `src/app/page.tsx` → home público
-- `src/app/(auth)/login` → login
-- `src/app/(auth)/register` → registro
-- `src/app/(player)/dashboard` → dashboard jugador logueado
-- `src/app/(player)/onboarding` → completar perfil post-registro
-- `src/app/(player)/profile` → perfil propio del jugador
-- `src/app/(player)/matches` → mis partidos
-- `src/app/(player)/stats` → mis estadísticas
-- `src/app/(player)/notifications` → notificaciones
-- `src/app/(player)/tournament-signup` → inscripción al torneo activo
-- `src/app/admin/dashboard` → dashboard admin
-- `src/app/admin/players` → gestión de jugadores
-- `src/app/admin/approvals` → aprobación de inscripciones
-- `src/app/admin/tournament` → configuración del torneo
-- `src/app/admin/teams` → equipos
-- `src/app/admin/draw` → sorteo con drag & drop
-- `src/app/admin/fixture` → fixture y carga de partidos
-- `src/app/admin/staff` → gestión de colaboradores
-- `src/app/(public)/fixture` → fixture público
-- `src/app/(public)/standings` → tabla de posiciones pública
-- `src/app/(public)/scorers` → goleadores
-- `src/app/(public)/goalkeepers` → valla menos vencida
-- `src/app/(public)/fair-play` → fair play
-- `src/app/(public)/match/[id]` → detalle partido público
-- `src/app/(public)/team/[id]` → detalle equipo público
-- `src/app/(public)/player/[id]` → detalle jugador público
+Build:
 
----
+```yaml
+preBuild:
+  commands:
+    - npm install --legacy-peer-deps
+build:
+  commands:
+    - env | grep -e NEXT_PUBLIC_SUPABASE_URL -e NEXT_PUBLIC_SUPABASE_ANON_KEY -e SUPABASE_SERVICE_ROLE_KEY >> .env.production
+    - npm run build
+```
 
-## 🔐 Roles y permisos
+Contexto del fix de deploy:
 
-### Jugador (`player`)
-- Completar/editar su perfil propio (no puede editar su `score`).
-- Solicitar inscripción al torneo activo.
-- Ver sus partidos, estadísticas, notificaciones.
+- Las rutas SSR publicas empezaron a fallar en produccion con HTTP 500.
+- CloudWatch mostro `Error: supabaseKey is required`.
+- Causa: Amplify no estaba entregando `SUPABASE_SERVICE_ROLE_KEY` al runtime SSR de Next.
+- Fix: agregar las variables necesarias a `.env.production` durante el build en `amplify.yml`.
+- Ultimo deploy verificado: job 13, commit `7b6ca4d`, estado `SUCCEED`.
 
-### Colaborador (`staff`)
-Todo lo del jugador +
-- Aprobar/rechazar inscripciones.
-- Cargar resultados, goles, tarjetas, asignar veedor.
-- Editar datos de jugadores (incluyendo puntaje).
+## 7. Estado funcional actual
 
-### Admin principal (`admin`)
-Todo lo del colaborador +
-- Crear/cerrar torneos.
-- Configurar fases, canchas, horarios.
-- Invitar/eliminar colaboradores.
+Validado el 2026-04-25 contra produccion:
 
----
+- `/bracket`: 200.
+- `/scorers`: 200, sin `undefined undefined`, sin fallback `Jugador`, con nombres reales.
+- `/`: 200, top artilleros sin `undefined undefined`.
+- `/match/fa4612d6-954c-4048-a787-8e4bc65775e2`: 200, eventos sin `Desconocido`, con links a jugador.
 
-## 📱 Referencias visuales
+Build local:
 
-Los 3 mockups originales validados con el cliente (son la fuente de verdad visual):
+- `npm run build`: pasa.
 
-- **`docs/mockups/tournament-admin.jsx`** — Panel administrador completo.
-- **`docs/mockups/player-app.jsx`** — Panel del jugador (login, registro, onboarding, perfil, partidos, stats, notificaciones).
-- **`docs/mockups/public-view.jsx`** — Vista pública mobile-first con versión desktop.
+Cambios recientes confirmados:
 
-**Cuando implementes una pantalla, abrí el mockup correspondiente y tomalo como guía visual.** No inventes layouts nuevos, no cambies paletas, no uses componentes distintos. Si necesitás un cambio, discutilo antes.
+- Bracket publico mobile ahora renderiza una version vertical usable en telefono.
+- Public pages ahora muestran datos reales de jugadores, goleadores, sanciones, equipos y fotos si existen.
+- Se incorporo `PlayerAvatar` compartido para mostrar imagen cargada o iniciales.
+- Se ajustaron consultas SSR para evitar filas cruzadas de torneos con `!inner` donde correspondia.
+- Se corrigio el runtime de Amplify para que rutas SSR con Supabase admin no fallen.
 
----
+## 8. Commits recientes importantes
 
-## ⛔ Errores frecuentes a evitar
+- `7b6ca4d Fix Amplify Supabase runtime env`
+  - Corrige variables runtime de Supabase en Amplify.
+  - Refuerza `createAdminClient()` como server-only.
 
-1. **Copiar el mockup con su data mock y no conectar a Supabase.** Los mockups son para *referencia visual*. La data SIEMPRE viene de la DB.
-2. **Usar el tema oscuro en el panel admin/player.** Es light theme institucional. La única excepción: algunos heroes o banners puntuales en la vista pública.
-3. **Asignar puntaje en rango 0-100.** Es 1-15.
-4. **Olvidar la validación Zod en server actions.** Siempre validar.
-5. **Crear interfaces TypeScript inventadas cuando ya hay types generados.** Usar `database.ts`.
-6. **No revalidar el path después de una mutation.** Usar `revalidatePath()`.
+- `591aefe Fix public player data rendering`
+  - Corrige render de datos publicos de jugadores en home, goleadores, sanciones, partido, equipo y jugador.
+  - Evita `undefined undefined`, `Jugador` y `Desconocido` cuando hay datos reales.
 
----
+- `2872824 Improve public bracket and player data views`
+  - Mejora bracket publico mobile.
+  - Agrega/usa avatars y datos de jugadores en vistas publicas.
 
-## 🗺️ Roadmap (milestones)
+- `83a7cea feat: add tournament branding and team color combos`
+  - Branding de torneo y combinaciones de colores/equipos.
 
-Los milestones se cierran de punta a punta, no por pantallas sueltas. No avanzar al siguiente hasta no tener el anterior funcional.
+- `be24d37 feat: improve bracket editing flow`
+  - Mejoras previas al flujo admin de bracket.
 
-- **M1 — Fundación** ✅ Setup, auth, protección de rutas.
-- **M2 — Lado del jugador** 🟡 Onboarding, perfil, solicitud de inscripción, vista pública básica.
-- **M3 — Panel admin core** 🔴 Gestión de jugadores, aprobaciones, configuración torneo, sorteo.
-- **M4 — Partidos y stats** 🔴 Fixture, carga de partidos, veedor, notificaciones, bracket.
+## 9. Estado del working tree
 
-Ver `docs/00-architecture.md` para el detalle.
+Al momento de documentar, `main` esta sincronizada con `origin/main`, pero hay cambios locales no relacionados que no fueron tocados en los commits recientes.
+
+Archivos modificados locales detectados:
+
+- `src/app/(player)/dashboard/page.tsx`
+- `src/app/(player)/matches/page.tsx`
+- `src/app/(player)/profile/page.tsx`
+- `src/app/(player)/stats/page.tsx`
+- `src/app/admin/draw/DrawClient.tsx`
+- `src/app/admin/draw/page.tsx`
+- `src/app/admin/layout.tsx`
+- `src/components/admin/TopBar.tsx`
+- `src/components/admin/approvals/ApprovalsPageClient.tsx`
+- `src/components/admin/players/PlayersPageClient.tsx`
+- `src/components/admin/teams/RosterPanel.tsx`
+- `src/components/admin/teams/TeamEditor.tsx`
+- `src/components/admin/teams/TeamsPageClient.tsx`
+- `src/components/player/profile/ProfileShell.tsx`
+- `src/lib/actions/players.ts`
+- `src/lib/supabase/middleware.ts`
+
+Archivos/directorios no trackeados detectados:
+
+- `.claude/`
+- `amplify-runtime-log.json`
+- `devserver-3000*.log`
+- `devserver-3001*.log`
+- `devserver-3002*.log`
+- `src/app/admin/players/[id]/`
+
+Regla para siguientes agentes:
+
+- No revertir ni limpiar esos cambios sin confirmacion explicita.
+- Si se trabaja en esas zonas, revisar primero el diff y asumir que son cambios del usuario o de otra sesion.
+
+## 10. Patrones de implementacion
+
+Server Components:
+
+- Usar por defecto para paginas que solo leen datos.
+- Usar `createClient()` de `@/lib/supabase/server` para queries bajo RLS.
+- Usar `createAdminClient()` solo server-side y solo cuando haya una razon de seguridad/control clara.
+
+Client Components:
+
+- Solo con `'use client'` cuando hay estado, interacciones, tabs, forms o handlers.
+- No importar `createAdminClient()` ni ningun secreto.
+
+Mutations:
+
+- Server actions en `src/lib/actions/*.ts`.
+- Validar inputs con Zod.
+- Retornar objetos tipados `{ success, error, fieldErrors }`.
+- Revalidar rutas afectadas con `revalidatePath()`.
+
+UI:
+
+- Admin/player: light theme institucional.
+- Publico: mas editorial y mobile-first, con azul/naranja como identidad.
+- Iconos: lucide-react.
+- Evitar datos mock en pantallas conectadas.
+
+## 11. Deuda tecnica y riesgos conocidos
+
+Prioridad alta:
+
+- Arreglar acceso publico a datos seguros de jugadores desde DB: crear migracion para `v_players_public` o una RPC segura que exponga solo campos publicos, y luego dejar de usar service role en paginas publicas.
+- Revisar y normalizar el working tree antes de nuevos commits grandes.
+- Confirmar que los buckets `avatars` y `team-logos` existen en produccion y tienen policies correctas.
+
+Prioridad media:
+
+- Actualizar `README.md` y `docs/00-architecture.md`, que todavia mencionan Vercel como deploy recomendado aunque el deploy actual es Amplify.
+- Revisar encoding de docs antiguos con caracteres rotos.
+- Mejorar tests/checks automatizados para rutas publicas SSR.
+- Agregar una verificacion post-deploy automatica para `/`, `/scorers`, `/bracket`, `/fixture`, `/standings` y una ruta de partido.
+
+Prioridad baja:
+
+- Consolidar gestor de paquetes: repo tiene `pnpm-lock.yaml`, pero deploy usa npm.
+- Documentar flujos completos de admin por pantalla.
+- Agregar capturas o checklist visual mobile para vistas publicas.
+
+## 12. Proximos pasos recomendados
+
+Orden sugerido:
+
+1. Cerrar estado de working tree: decidir si los cambios locales de admin/player se commitean, se separan por feature o se descartan manualmente.
+2. Crear migracion para datos publicos de jugador:
+   - Corregir `v_players_public` para lectura anon segura, o crear una RPC `get_public_player_data`.
+   - Validar que no expone DNI, telefono, email privado ni campos sensibles.
+   - Reemplazar lecturas publicas con anon client o RPC.
+3. Revisar fotos:
+   - Confirmar bucket `avatars`.
+   - Confirmar que `players.avatar_url` guarda URL publica o path consistente.
+   - Confirmar que `PlayerAvatar` cubre URL, iniciales y fallback.
+4. QA mobile publico:
+   - Home.
+   - Fixture.
+   - Tabla.
+   - Goleadores.
+   - Fair play/sanciones.
+   - Bracket.
+   - Equipo.
+   - Jugador.
+   - Partido.
+5. Admin/player:
+   - Revisar cambios locales existentes.
+   - Probar onboarding, profile, dashboard, matches, stats.
+   - Probar carga de goles/tarjetas y su impacto en publico.
+6. Documentacion:
+   - Actualizar README para Amplify.
+   - Actualizar arquitectura con estado real, no solo roadmap inicial.
+
+## 13. Checklist para cualquier nueva sesion
+
+Antes de tocar codigo:
+
+```bash
+git status -sb
+git log --oneline -5
+npm run build
+```
+
+Si se toca produccion:
+
+```bash
+git push origin main
+aws amplify list-jobs --app-id d3oq0bto5l3dl0 --branch-name main --max-results 5
+aws amplify get-job --app-id d3oq0bto5l3dl0 --branch-name main --job-id <job-id>
+```
+
+Checks minimos post-deploy:
+
+- Home responde 200.
+- Goleadores responde 200.
+- Bracket responde 200.
+- No aparece `undefined undefined`.
+- No aparece `Jugador` como fallback si hay datos reales.
+- No aparece `Desconocido` en eventos con jugador cargado.
+
+## 14. Decision log resumido
+
+- Se priorizo mobile public porque el uso real viene desde telefono.
+- Se mantuvo SSR para vistas publicas para SEO y performance.
+- Se uso admin client server-only como parche controlado para renderizar datos publicos de jugadores mientras RLS/view no permiten anon.
+- Se eligio documentar el estado en `docs/CONTEXT.md` como contrato vivo para humanos y AI.
+- Se mantiene cuidado sobre cambios locales no relacionados: no revertir sin autorizacion.

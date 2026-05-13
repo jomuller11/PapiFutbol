@@ -68,12 +68,17 @@ type Props = {
   registrationStatus: string;
   teamName: string | null;
   teamColor: string | null;
+  editablePlayerId?: string;
+  backHref?: string;
+  backLabel?: string;
+  titleLabel?: string;
 };
 
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
 export function ProfileShell({
   player, userEmail, activeTournament, registrationStatus, teamName, teamColor,
+  editablePlayerId, backHref = '/dashboard', backLabel = 'Volver al panel', titleLabel = 'MI PERFIL',
 }: Props) {
   const [form, setForm] = useState({
     firstName: player.first_name,
@@ -114,6 +119,7 @@ export function ProfileShell({
     const fd = new FormData();
     fd.append('file', file);
     startAvatarTransition(async () => {
+      if (editablePlayerId) fd.append('player_id', editablePlayerId);
       const res = await uploadAvatar(fd);
       if (!res.success) setAvatarPreview(player.avatar_url);
     });
@@ -139,7 +145,7 @@ export function ProfileShell({
     };
 
     startSaveTransition(async () => {
-      const res = await completePlayerProfile(input);
+      const res = await completePlayerProfile(input, editablePlayerId);
       if (!res.success) {
         if (res.fieldErrors) setFieldErrors(res.fieldErrors);
         setSaveError(res.error ?? 'No pudimos guardar los cambios.');
@@ -163,9 +169,9 @@ export function ProfileShell({
       <header className="border-b border-slate-200 bg-white px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <Link
-            href="/dashboard"
+            href={backHref}
             className="p-1.5 text-slate-400 hover:text-slate-900 transition-colors"
-            title="Volver al panel"
+            title={backLabel}
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
@@ -178,7 +184,7 @@ export function ProfileShell({
               <div className="font-serif text-lg font-bold text-blue-900">
                 Liga<span className="text-orange-500">.</span>9
               </div>
-              <div className="text-[10px] font-mono text-slate-500 tracking-widest">MI PERFIL</div>
+              <div className="text-[10px] font-mono text-slate-500 tracking-widest">{titleLabel}</div>
             </div>
           </div>
         </div>

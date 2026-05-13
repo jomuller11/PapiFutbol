@@ -7,6 +7,7 @@ import {
 import { createClient } from '@/lib/supabase/server';
 import { logout } from '@/lib/actions/auth';
 import { MatchRow } from '@/components/public/MatchRow';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 export default async function PlayerDashboard() {
   const supabase = await createClient();
@@ -129,8 +130,6 @@ export default async function PlayerDashboard() {
   }
 
   const displayName = (player as any).nickname || (player as any).first_name;
-  const initials = ((player as any).first_name?.[0] ?? '') + ((player as any).last_name?.[0] ?? '');
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -148,9 +147,13 @@ export default async function PlayerDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
-          <div className="w-8 h-8 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center text-xs font-semibold">
-            {initials || 'JG'}
-          </div>
+          <PlayerAvatar
+            firstName={(player as any).first_name}
+            lastName={(player as any).last_name}
+            avatarUrl={(player as any).avatar_url}
+            className="w-8 h-8 rounded-full"
+            textClassName="bg-blue-100 text-blue-900 text-xs font-semibold"
+          />
           <div className="text-xs text-slate-600 hidden md:block">
             {(player as any).first_name} {(player as any).last_name}
           </div>

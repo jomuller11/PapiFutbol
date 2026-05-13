@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 import { isLightColor } from '@/lib/constants';
 import { Shield, MapPin, Clock, Target, Star } from 'lucide-react';
+import { getPublicPlayersByIds } from '@/lib/queries/public-players';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,7 +24,6 @@ const POSITION_LABELS: Record<string, string> = {
 export default async function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const adminSupabase = createAdminClient();
 
   const { data: team } = await supabase
     .from('teams')
@@ -43,9 +42,9 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
   const shieldClass = usesLightHeader ? 'text-slate-950' : 'text-white';
 
   const [rosterRes, matchesRes, groupTeamRes] = await Promise.all([
-    adminSupabase
+    supabase
       .from('team_memberships')
-      .select('id, jersey_number, is_captain, player:players(id, first_name, last_name, nickname, position, score, avatar_url)')
+      .select('id, jersey_number, is_captain, player_id')
       .eq('team_id', id)
       .order('jersey_number', { ascending: true, nullsFirst: false }),
 
@@ -68,7 +67,13 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
       .limit(1),
   ]);
 
-  const roster = ((rosterRes.data as any[]) ?? []).filter(r => r.player);
+  const playersById = await getPublicPlayersByIds(
+    supabase,
+    ((rosterRes.data as any[]) ?? []).map((membership) => membership.player_id)
+  );
+  const roster = ((rosterRes.data as any[]) ?? [])
+    .map((membership) => ({ ...membership, player: playersById[membership.player_id] }))
+    .filter(r => r.player);
   const matches = (matchesRes.data as any[]) ?? [];
   const groupInfo = (groupTeamRes.data as any[])?.[0]?.group ?? null;
 

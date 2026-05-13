@@ -7,6 +7,7 @@ import {
 import type { TeamsPageData, TeamWithRoster } from '@/app/admin/teams/page';
 import { isLightColor } from '@/lib/constants';
 import { TeamEditor } from './TeamEditor';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 type Props = {
   data: TeamsPageData;
@@ -15,8 +16,13 @@ type Props = {
 export function TeamsPageClient({ data }: Props) {
   const [search, setSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState<'all' | 'unassigned' | string>('all');
-  const [editingTeam, setEditingTeam] = useState<TeamWithRoster | null>(null);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [creatingTeam, setCreatingTeam] = useState(false);
+
+  const editingTeam = useMemo(
+    () => data.teams.find(team => team.id === editingTeamId) ?? null,
+    [data.teams, editingTeamId],
+  );
 
   const filtered = useMemo(() => {
     return data.teams.filter(t => {
@@ -125,7 +131,7 @@ export function TeamsPageClient({ data }: Props) {
             <TeamCard
               key={team.id}
               team={team}
-              onEdit={() => setEditingTeam(team)}
+              onEdit={() => setEditingTeamId(team.id)}
             />
           ))}
         </div>
@@ -144,7 +150,7 @@ export function TeamsPageClient({ data }: Props) {
       />
       <TeamEditor
         open={!!editingTeam}
-        onClose={() => setEditingTeam(null)}
+        onClose={() => setEditingTeamId(null)}
         tournamentId={data.tournamentId!}
         groups={data.groups}
         team={editingTeam}
@@ -268,10 +274,15 @@ function TeamCard({ team, onEdit }: { team: TeamWithRoster; onEdit: () => void }
               {team.members.slice(0, 6).map(m => (
                 <div
                   key={m.membership_id}
-                  className="w-6 h-6 bg-blue-100 text-blue-900 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-semibold"
                   title={`${m.first_name} ${m.last_name}`}
                 >
-                  {(m.first_name[0] ?? '') + (m.last_name[0] ?? '')}
+                  <PlayerAvatar
+                    firstName={m.first_name}
+                    lastName={m.last_name}
+                    avatarUrl={m.avatar_url}
+                    className="w-6 h-6 rounded-full border-2 border-white"
+                    textClassName="bg-blue-100 text-blue-900 text-[9px] font-semibold"
+                  />
                 </div>
               ))}
               {team.roster_count > 6 && (

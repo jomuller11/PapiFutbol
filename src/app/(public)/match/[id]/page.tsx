@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound } from 'next/navigation';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { MatchDetailClient } from './MatchDetailClient';
 import { getTeamColorBackground } from '@/lib/constants';
 import { formatDisplayScore } from '@/lib/utils/match-notes';
+import { getPublicPlayersByIds } from '@/lib/queries/public-players';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,7 +28,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const adminSupabase = createAdminClient();
 
   const { data: match } = await supabase
     .from('matches')
@@ -44,24 +43,37 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   if (!match) notFound();
 
   // Goles del partido
-  const { data: goals } = await adminSupabase
+  const { data: goalsData } = await supabase
     .from('match_goals')
     .select(`
       id, minute, is_own_goal, team_id,
-      player:players!match_goals_player_id_fkey(id, first_name, last_name, nickname, avatar_url)
+      player_id
     `)
     .eq('match_id', id)
     .order('minute', { ascending: true });
 
   // Tarjetas del partido
-  const { data: cards } = await adminSupabase
+  const { data: cardsData } = await supabase
     .from('match_cards')
     .select(`
       id, minute, type, team_id,
-      player:players!match_cards_player_id_fkey(id, first_name, last_name, nickname, avatar_url)
+      player_id
     `)
     .eq('match_id', id)
     .order('minute', { ascending: true });
+
+  const playersById = await getPublicPlayersByIds(supabase, [
+    ...(((goalsData as any[]) ?? []).map((goal) => goal.player_id)),
+    ...(((cardsData as any[]) ?? []).map((card) => card.player_id)),
+  ]);
+  const goals = ((goalsData as any[]) ?? []).map((goal) => ({
+    ...goal,
+    player: goal.player_id ? playersById[goal.player_id] : null,
+  }));
+  const cards = ((cardsData as any[]) ?? []).map((card) => ({
+    ...card,
+    player: card.player_id ? playersById[card.player_id] : null,
+  }));
 
   const isPlayed = (match as any).status === 'played';
   const ht = (match as any).home_team as any;
@@ -137,7 +149,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      <MatchDetailClient match={match as any} goals={goals ?? []} cards={cards ?? []} />
+      <MatchDetailClient match={match as any} goals={goals} cards={cards} />
     </div>
   );
 }

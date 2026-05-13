@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { logout } from '@/lib/actions/auth';
 import { LogOut, Trophy } from 'lucide-react';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 export default async function MatchesPage() {
   const supabase = await createClient();
@@ -13,7 +14,7 @@ export default async function MatchesPage() {
 
   const { data: player } = await supabase
     .from('players')
-    .select('id, first_name, last_name, nickname')
+    .select('id, first_name, last_name, nickname, avatar_url')
     .eq('profile_id', user.id)
     .maybeSingle();
 
@@ -70,8 +71,6 @@ export default async function MatchesPage() {
 
   const upcoming = matches.filter(m => m.status === 'scheduled');
   const played = [...matches.filter(m => m.status === 'played')].reverse();
-  const initials = ((player as any).first_name?.[0] ?? '') + ((player as any).last_name?.[0] ?? '');
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -89,9 +88,13 @@ export default async function MatchesPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
-          <div className="w-8 h-8 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center text-xs font-semibold">
-            {initials}
-          </div>
+          <PlayerAvatar
+            firstName={(player as any).first_name}
+            lastName={(player as any).last_name}
+            avatarUrl={(player as any).avatar_url}
+            className="w-8 h-8 rounded-full"
+            textClassName="bg-blue-100 text-blue-900 text-xs font-semibold"
+          />
           <form action={logout}>
             <button type="submit" className="p-1.5 text-slate-400 hover:text-slate-900" title="Cerrar sesión">
               <LogOut className="w-4 h-4" />

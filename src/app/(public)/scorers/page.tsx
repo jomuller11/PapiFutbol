@@ -4,7 +4,7 @@ import { Zap } from 'lucide-react';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getPublicPlayersByIds } from '@/lib/queries/public-players';
 
 export const metadata = {
   title: 'Goleadores — Liga.9',
@@ -13,7 +13,6 @@ export const metadata = {
 
 export default async function ScorersPage() {
   const supabase = await createClient();
-  const adminSupabase = createAdminClient();
 
   const { data: tournament } = await supabase
     .from('tournaments')
@@ -31,19 +30,20 @@ export default async function ScorersPage() {
   }
 
   // Goles por jugador (sin goles en contra propios)
-  const { data: goals } = await adminSupabase
+  const { data: goals } = await supabase
     .from('match_goals')
     .select(`
       player_id, is_own_goal,
-      player:players!match_goals_player_id_fkey(
-        id, first_name, last_name, nickname, position, avatar_url,
-        profile:profiles!players_profile_id_fkey(email)
-      ),
       team:teams!match_goals_team_id_fkey(name, color, secondary_color),
       match:matches!match_goals_match_id_fkey!inner(tournament_id)
     `)
     .eq('match.tournament_id', (tournament as any).id)
     .eq('is_own_goal', false);
+
+  const playersById = await getPublicPlayersByIds(
+    supabase,
+    ((goals as any[]) ?? []).map((goal) => goal.player_id)
+  );
 
   // Agrupar por jugador
   const scorerMap: Record<string, {
@@ -56,7 +56,7 @@ export default async function ScorersPage() {
     if (!g.player_id) continue;
     if (!scorerMap[g.player_id]) {
       scorerMap[g.player_id] = {
-        player: g.player,
+        player: playersById[g.player_id],
         team: g.team,
         goals: 0,
       };

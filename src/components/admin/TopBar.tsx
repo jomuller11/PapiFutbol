@@ -1,12 +1,14 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { LogOut, UserCog } from 'lucide-react';
 import { logout } from '@/lib/actions/auth';
 
 type Props = {
   userEmail: string;
   role: 'admin' | 'staff';
+  hasPlayerProfile?: boolean;
 };
 
 const titles: Record<string, string> = {
@@ -20,9 +22,9 @@ const titles: Record<string, string> = {
   '/admin/staff': 'Equipo Administrativo',
 };
 
-export function TopBar({ userEmail, role }: Props) {
+export function TopBar({ userEmail, role, hasPlayerProfile = false }: Props) {
   const pathname = usePathname();
-  const title = titles[pathname] ?? 'Liga.9';
+  const title = pathname.startsWith('/admin/players/') ? 'Perfil de jugador' : titles[pathname] ?? 'Liga.9';
   const initials = userEmail
     .split('@')[0]
     .split(/[._]/)
@@ -40,6 +42,15 @@ export function TopBar({ userEmail, role }: Props) {
       </div>
 
       <div className="flex items-center gap-3">
+        {hasPlayerProfile && (
+          <Link
+            href="/profile"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 border border-slate-200 text-[11px] font-medium text-slate-700 hover:bg-slate-200"
+          >
+            <UserCog className="w-3.5 h-3.5" />
+            Mi perfil jugador
+          </Link>
+        )}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200">
           <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
           <span className="text-[11px] font-mono text-blue-900 font-medium">

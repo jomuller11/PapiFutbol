@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Search, Plus, User, X, Target, Square, Star, Info } from 'lucide-react';
 import type { PlayerWithStats } from '@/app/admin/players/page';
 import { ScoreEditor } from './ScoreEditor';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 const POSITIONS = ['ARQ', 'DFC', 'LAT', 'MCC', 'MCO', 'EXT', 'DEL'] as const;
 
@@ -118,9 +120,13 @@ export function PlayersPageClient({ players }: Props) {
                   >
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center text-[10px] font-semibold">
-                          {(p.first_name[0] ?? '') + (p.last_name[0] ?? '')}
-                        </div>
+                        <PlayerAvatar
+                          firstName={p.first_name}
+                          lastName={p.last_name}
+                          avatarUrl={p.avatar_url}
+                          className="w-8 h-8 rounded-full"
+                          textClassName="bg-blue-100 text-blue-900 text-[10px] font-semibold"
+                        />
                         <div>
                           <div className="font-medium">
                             {p.first_name} {p.last_name}
@@ -259,8 +265,14 @@ function PlayerDetail({
         >
           <X className="w-4 h-4" />
         </button>
-        <div className="absolute -bottom-10 left-6 w-20 h-20 bg-white border-4 border-white flex items-center justify-center font-serif font-bold text-2xl text-blue-900 shadow-sm">
-          {(player.first_name[0] ?? '') + (player.last_name[0] ?? '')}
+        <div className="absolute -bottom-10 left-6">
+          <PlayerAvatar
+            firstName={player.first_name}
+            lastName={player.last_name}
+            avatarUrl={player.avatar_url}
+            className="w-20 h-20 rounded-full border-4 border-white shadow-sm"
+            textClassName="bg-white text-blue-900 text-2xl font-serif font-bold"
+          />
         </div>
       </div>
       <div className="pt-12 px-6 pb-6">
@@ -343,9 +355,12 @@ function PlayerDetail({
             <Star className="w-4 h-4" />
             {player.score === null ? 'Asignar puntaje' : 'Cambiar puntaje'}
           </button>
-          <button className="w-full bg-white border border-slate-200 text-slate-700 py-2 text-sm hover:bg-slate-50">
+          <Link
+            href={`/admin/players/${player.id}`}
+            className="block w-full bg-white border border-slate-200 text-slate-700 py-2 text-sm hover:bg-slate-50 text-center"
+          >
             Editar perfil completo
-          </button>
+          </Link>
         </div>
 
         <div className="mt-4 flex items-start gap-2 text-[10px] text-slate-500">

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Search, UserPlus, X, Crown, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, UserPlus, X, Crown, AlertCircle, Check } from 'lucide-react';
 import { addTeamMember, removeTeamMember, updateTeamMember } from '@/lib/actions/teams';
 import type { TeamWithRoster, AvailablePlayer } from '@/app/admin/teams/page';
 
@@ -12,9 +13,11 @@ type Props = {
 };
 
 export function RosterPanel({ teamId, members, availablePlayers }: Props) {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -26,6 +29,8 @@ export function RosterPanel({ teamId, members, availablePlayers }: Props) {
 
   const handleAdd = (playerId: string) => {
     setAddError(null);
+    setActionError(null);
+    setSuccessMessage(null);
     setActiveId(playerId);
     const fd = new FormData();
     fd.append('team_id', teamId);
@@ -37,12 +42,15 @@ export function RosterPanel({ teamId, members, availablePlayers }: Props) {
         setAddError(result.error);
         return;
       }
-      window.location.reload();
+      setSuccessMessage('Jugador agregado al plantel.');
+      router.refresh();
     });
   };
 
   const handleRemove = (membershipId: string) => {
     setActionError(null);
+    setAddError(null);
+    setSuccessMessage(null);
     setActiveId(membershipId);
     startTransition(async () => {
       const result = await removeTeamMember(membershipId);
@@ -51,12 +59,15 @@ export function RosterPanel({ teamId, members, availablePlayers }: Props) {
         setActionError(result.error);
         return;
       }
-      window.location.reload();
+      setSuccessMessage('Jugador quitado del plantel.');
+      router.refresh();
     });
   };
 
   const handleToggleCaptain = (membershipId: string, isCaptain: boolean) => {
     setActionError(null);
+    setAddError(null);
+    setSuccessMessage(null);
     setActiveId(membershipId);
     const fd = new FormData();
     fd.append('membership_id', membershipId);
@@ -68,7 +79,8 @@ export function RosterPanel({ teamId, members, availablePlayers }: Props) {
         setActionError(result.error);
         return;
       }
-      window.location.reload();
+      setSuccessMessage(isCaptain ? 'Capitán removido.' : 'Capitán actualizado.');
+      router.refresh();
     });
   };
 
@@ -87,6 +99,13 @@ export function RosterPanel({ teamId, members, availablePlayers }: Props) {
           <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-2.5 flex items-start gap-2 mb-2">
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
             <span>{actionError}</span>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-2.5 flex items-start gap-2 mb-2">
+            <Check className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <span>{successMessage}</span>
           </div>
         )}
 

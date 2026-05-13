@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getPublicPlayersByIds } from '@/lib/queries/public-players';
 import { ShieldAlert } from 'lucide-react';
 
 export const metadata = {
@@ -19,7 +19,6 @@ const CARD_POINTS: Record<string, number> = {
 
 export default async function SanctionsPage() {
   const supabase = await createClient();
-  const adminSupabase = createAdminClient();
 
   const { data: tournament } = await supabase
     .from('tournaments')
@@ -36,15 +35,19 @@ export default async function SanctionsPage() {
     );
   }
 
-  const { data: cards } = await adminSupabase
+  const { data: cards } = await supabase
     .from('match_cards')
     .select(`
       type, player_id, team_id,
-      player:players!match_cards_player_id_fkey(id, first_name, last_name, nickname, avatar_url),
       team:teams!match_cards_team_id_fkey(id, name, color, secondary_color),
       match:matches!match_cards_match_id_fkey!inner(tournament_id)
     `)
     .eq('match.tournament_id', (tournament as any).id);
+
+  const playersById = await getPublicPlayersByIds(
+    supabase,
+    ((cards as any[]) ?? []).map((card) => card.player_id)
+  );
 
   const sanctions = new Map<string, {
     player_id: string;
@@ -62,14 +65,15 @@ export default async function SanctionsPage() {
   }>();
 
   for (const card of (cards as any[]) ?? []) {
-    if (!card.player_id || !card.player) continue;
+    const player = card.player_id ? playersById[card.player_id] : null;
+    if (!card.player_id || !player) continue;
 
     const existing = sanctions.get(card.player_id) ?? {
       player_id: card.player_id,
-      player_name: card.player.nickname || `${card.player.first_name} ${card.player.last_name}`,
-      first_name: card.player.first_name ?? null,
-      last_name: card.player.last_name ?? null,
-      avatar_url: card.player.avatar_url ?? null,
+      player_name: player.nickname || `${player.first_name} ${player.last_name}`,
+      first_name: player.first_name ?? null,
+      last_name: player.last_name ?? null,
+      avatar_url: player.avatar_url ?? null,
       team_id: card.team?.id ?? null,
       team_name: card.team?.name ?? 'Sin equipo',
       color: card.team?.color ?? '#94a3b8',

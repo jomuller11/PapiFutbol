@@ -7,6 +7,7 @@ export type DrawPlayer = {
   first_name: string;
   last_name: string;
   nickname: string | null;
+  avatar_url: string | null;
   position: string | null;
   score: number | null;
 };
@@ -59,7 +60,7 @@ export default async function DrawPage() {
   const [registrationsRes, teamsRes] = await Promise.all([
     supabase
       .from('player_tournament_registrations')
-      .select('player_id, players!inner(id, first_name, last_name, nickname, position, score)')
+      .select('player_id, players!inner(id, first_name, last_name, nickname, avatar_url, position, score)')
       .eq('tournament_id', tournamentId)
       .eq('status', 'approved'),
 
@@ -91,6 +92,7 @@ export default async function DrawPage() {
       first_name: r.players.first_name,
       last_name: r.players.last_name,
       nickname: r.players.nickname ?? null,
+      avatar_url: r.players.avatar_url ?? null,
       position: r.players.position ?? null,
       score: r.players.score ?? null,
     }));

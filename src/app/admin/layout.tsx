@@ -27,11 +27,20 @@ export default async function AdminLayout({
     redirect('/dashboard');
   }
 
+  const { count: playerCount } = await supabase
+    .from('players')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', user.id);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex font-sans">
       <Sidebar role={(profile as any).role} />
       <div className="flex-1 min-h-screen flex flex-col">
-        <TopBar userEmail={(profile as any).email} role={(profile as any).role} />
+        <TopBar
+          userEmail={(profile as any).email}
+          role={(profile as any).role}
+          hasPlayerProfile={(playerCount ?? 0) > 0}
+        />
         <main className="flex-1 p-8">{children}</main>
       </div>
     </div>

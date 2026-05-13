@@ -14,7 +14,19 @@ async function requireAuth() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: 'No autorizado', supabase, user: null };
-  return { ok: true as const, supabase, user };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  return {
+    ok: true as const,
+    supabase,
+    user,
+    role: ((profile as any)?.role ?? 'player') as 'player' | 'staff' | 'admin',
+  };
 }
 
 export type PlayerActionResult = {
@@ -47,7 +59,10 @@ const PROFILE_SCHEMA = z.object({
 
 export type ProfileInput = z.infer<typeof PROFILE_SCHEMA>;
 
-export async function completePlayerProfile(input: ProfileInput): Promise<PlayerActionResult> {
+export async function completePlayerProfile(
+  input: ProfileInput,
+  targetPlayerId?: string
+): Promise<PlayerActionResult> {
   const parsed = PROFILE_SCHEMA.safeParse(input);
   if (!parsed.success) {
     return { success: false, fieldErrors: parsed.error.flatten().fieldErrors };
@@ -57,16 +72,20 @@ export async function completePlayerProfile(input: ProfileInput): Promise<Player
   if (!auth.ok) return { success: false, error: auth.error };
 
   const d = parsed.data;
+  const canManageAnyPlayer = auth.role === 'admin' || auth.role === 'staff';
+  const isAdminEdit = canManageAnyPlayer && !!targetPlayerId;
 
-  // Chequeo: ¿ya existe un player asociado al profile?
-  const { data: existing } = await auth.supabase
-    .from('players')
-    .select('id')
-    .eq('profile_id', auth.user.id)
-    .maybeSingle();
+  const playerLookup = auth.supabase.from('players').select('id, profile_id');
+  const { data: existing } = isAdminEdit
+    ? await playerLookup.eq('id', targetPlayerId).maybeSingle()
+    : await playerLookup.eq('profile_id', auth.user.id).maybeSingle();
+
+  if (isAdminEdit && !existing) {
+    return { success: false, error: 'Jugador no encontrado.' };
+  }
 
   const payload = {
-    profile_id: auth.user.id,
+    profile_id: isAdminEdit ? (existing as any).profile_id : auth.user.id,
     first_name: d.firstName,
     last_name: d.lastName,
     nickname: d.nickname ?? null,
@@ -107,6 +126,12 @@ export async function completePlayerProfile(input: ProfileInput): Promise<Player
 
   revalidatePath('/onboarding');
   revalidatePath('/profile');
+  revalidatePath('/admin/players');
+  revalidatePath(`/admin/players/${playerId}`);
+  revalidatePath('/');
+  revalidatePath('/scorers');
+  revalidatePath('/sanctions');
+  revalidatePath(`/player/${playerId}`);
   return { success: true, playerId };
 }
 
@@ -126,8 +151,28 @@ export async function uploadAvatar(formData: FormData): Promise<PlayerActionResu
     return { success: false, error: 'Solo JPG, PNG o WEBP.' };
   }
 
+  const targetPlayerId = formData.get('player_id');
+  const canManageAnyPlayer = auth.role === 'admin' || auth.role === 'staff';
+
+  const { data: targetPlayer } =
+    canManageAnyPlayer && typeof targetPlayerId === 'string' && targetPlayerId
+      ? await auth.supabase
+          .from('players')
+          .select('id, profile_id')
+          .eq('id', targetPlayerId)
+          .maybeSingle()
+      : await auth.supabase
+          .from('players')
+          .select('id, profile_id')
+          .eq('profile_id', auth.user.id)
+          .maybeSingle();
+
+  if (!targetPlayer) {
+    return { success: false, error: 'Jugador no encontrado.' };
+  }
+
   const ext = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp';
-  const path = `${auth.user.id}/avatar-${Date.now()}.${ext}`;
+  const path = `${(targetPlayer as any).profile_id}/avatar-${Date.now()}.${ext}`;
 
   const { error: uploadError } = await auth.supabase.storage
     .from('avatars')
@@ -143,7 +188,7 @@ export async function uploadAvatar(formData: FormData): Promise<PlayerActionResu
   const { error: updateError } = await (auth.supabase
     .from('players') as any)
     .update({ avatar_url: publicUrl.publicUrl })
-    .eq('profile_id', auth.user.id);
+    .eq('id', (targetPlayer as any).id);
 
   if (updateError) {
     console.error('updateAvatarUrl error', updateError);
@@ -152,6 +197,12 @@ export async function uploadAvatar(formData: FormData): Promise<PlayerActionResu
 
   revalidatePath('/onboarding');
   revalidatePath('/profile');
+  revalidatePath('/admin/players');
+  revalidatePath(`/admin/players/${(targetPlayer as any).id}`);
+  revalidatePath('/');
+  revalidatePath('/scorers');
+  revalidatePath('/sanctions');
+  revalidatePath(`/player/${(targetPlayer as any).id}`);
   return { success: true };
 }
 

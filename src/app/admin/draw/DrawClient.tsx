@@ -5,6 +5,7 @@ import { Shuffle, Zap, Check, AlertCircle, Users, Star } from 'lucide-react';
 import { saveDraw } from '@/lib/actions/teams';
 import { isLightColor } from '@/lib/constants';
 import type { DrawPlayer, DrawTeam } from './page';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 type Props = {
   tournament: { id: string; name: string; year: number };
@@ -140,6 +141,13 @@ export function DrawClient({ tournament, availablePlayers, teams }: Props) {
               .map((p, i) => (
                 <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
                   <span className="font-mono text-[10px] text-slate-400 w-5 text-right">{i + 1}</span>
+                  <PlayerAvatar
+                    firstName={p.first_name}
+                    lastName={p.last_name}
+                    avatarUrl={p.avatar_url}
+                    className="w-8 h-8 rounded-full"
+                    textClassName="bg-blue-100 text-blue-900 text-[10px] font-semibold"
+                  />
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium text-slate-800">
                       {p.first_name} {p.last_name}
@@ -203,6 +211,13 @@ export function DrawClient({ tournament, availablePlayers, teams }: Props) {
                     {players.map((p, i) => (
                       <div key={p.id} className="flex items-center gap-2 px-3 py-2">
                         <span className="font-mono text-[9px] text-slate-400 w-4 text-right flex-shrink-0">{i + 1}</span>
+                        <PlayerAvatar
+                          firstName={p.first_name}
+                          lastName={p.last_name}
+                          avatarUrl={p.avatar_url}
+                          className="w-7 h-7 rounded-full"
+                          textClassName="bg-blue-100 text-blue-900 text-[9px] font-semibold"
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-medium text-slate-800 truncate">
                             {p.first_name} {p.last_name}

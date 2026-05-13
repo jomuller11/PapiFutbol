@@ -12,6 +12,7 @@ import {
   moveToWaitlist,
   approveAllPending,
 } from '@/lib/actions/approvals';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 const REFERENCE_NAMES: Record<string, string> = {
   padre_alumno: 'Padre de Alumno',
@@ -198,7 +199,6 @@ function RegistrationTableRow({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const initials = (row.first_name[0] ?? '') + (row.last_name[0] ?? '');
   const requestedAt = new Date(row.requested_at).toLocaleDateString('es', {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   });
@@ -228,9 +228,13 @@ function RegistrationTableRow({
     <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
       <td className="px-5 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center text-[10px] font-semibold">
-            {initials}
-          </div>
+          <PlayerAvatar
+            firstName={row.first_name}
+            lastName={row.last_name}
+            avatarUrl={row.avatar_url}
+            className="w-9 h-9 rounded-full"
+            textClassName="bg-blue-100 text-blue-900 text-[10px] font-semibold"
+          />
           <div>
             <div className="font-semibold">
               {row.first_name} {row.last_name}

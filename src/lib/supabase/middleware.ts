@@ -67,7 +67,7 @@ export async function updateSession(request: NextRequest) {
 
     role = (profile as any)?.role ?? null;
 
-    if (role === 'player') {
+    if (role === 'player' || role === 'admin' || role === 'staff') {
       const { count } = await supabase
         .from('players')
         .select('id', { count: 'exact', head: true })
@@ -97,7 +97,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // ── 5. Admin/staff intentando entrar a rutas de player → mandarlos al panel
-  if (user && (role === 'admin' || role === 'staff') && isPlayerRoute) {
+  if (user && (role === 'admin' || role === 'staff') && isPlayerRoute && !(pathname.startsWith('/profile') && hasPlayerRecord)) {
     const url = request.nextUrl.clone();
     url.pathname = '/admin/dashboard';
     return NextResponse.redirect(url);

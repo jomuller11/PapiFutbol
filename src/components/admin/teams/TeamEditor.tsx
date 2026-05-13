@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useRef, type ChangeEvent, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   X, Save, AlertCircle, Trash2, MapPin,
   ImagePlus, Check, Users, Settings,
@@ -26,6 +27,7 @@ type Tab = 'datos' | 'plantel';
 
 export function TeamEditor({ open, onClose, tournamentId, groups, team, availablePlayers = [] }: Props) {
   const isEdit = !!team;
+  const router = useRouter();
 
   const [tab, setTab] = useState<Tab>('datos');
   const [name, setName] = useState('');
@@ -39,6 +41,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
   const [removeLogoOnSave, setRemoveLogoOnSave] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [isPending, startTransition] = useTransition();
   const [zoneWarning, setZoneWarning] = useState(false);
@@ -59,6 +62,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
       setLogoPreview(null);
       setRemoveLogoOnSave(false);
       setError(null);
+      setSuccessMessage(null);
       setFieldErrors({});
       setZoneWarning(false);
       setConfirmDelete(false);
@@ -81,6 +85,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
+    setSuccessMessage(null);
     setRemoveLogoOnSave(false);
     if (file.size > 2 * 1024 * 1024) {
       setError('La imagen no puede superar 2MB.');
@@ -93,6 +98,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
   };
 
   const clearLogo = () => {
+    setSuccessMessage(null);
     setLogoFile(null);
     setLogoPreview(null);
     setRemoveLogoOnSave(true);
@@ -102,6 +108,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
 
   const handleSubmit = () => {
     setError(null);
+    setSuccessMessage(null);
     setFieldErrors({});
 
     if (zoneChanged && !zoneWarning) {
@@ -153,8 +160,14 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
         }
       }
 
+      if (isEdit) {
+        setSuccessMessage('Cambios guardados correctamente.');
+        router.refresh();
+        return;
+      }
+
       onClose();
-      window.location.reload();
+      router.refresh();
     });
   };
 
@@ -177,11 +190,11 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-4"
       onClick={() => !isPending && onClose()}
     >
       <div
-        className="bg-white w-full max-w-2xl border border-slate-200 shadow-xl my-8"
+        className="mx-auto my-4 w-full max-w-2xl border border-slate-200 bg-white shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -313,7 +326,10 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
                   <input
                     type="text"
                     value={name}
-                    onChange={e => setName(e.target.value)}
+                    onChange={e => {
+                      setName(e.target.value);
+                      setSuccessMessage(null);
+                    }}
                     placeholder="Los Tigres"
                     maxLength={60}
                     disabled={isPending}
@@ -332,7 +348,10 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
                   <input
                     type="text"
                     value={shortName}
-                    onChange={e => setShortName(e.target.value.toUpperCase())}
+                    onChange={e => {
+                      setShortName(e.target.value.toUpperCase());
+                      setSuccessMessage(null);
+                    }}
                     placeholder="TIG"
                     maxLength={4}
                     disabled={isPending}
@@ -360,7 +379,10 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
                       <button
                         key={c.hex}
                         type="button"
-                        onClick={() => setColor(c.hex)}
+                        onClick={() => {
+                          setColor(c.hex);
+                          setSuccessMessage(null);
+                        }}
                         disabled={isPending}
                         className={`aspect-square flex items-center justify-center transition-all ${
                           active ? 'ring-2 ring-offset-2 ring-slate-900' : 'hover:scale-105'
@@ -385,7 +407,10 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
                 <div className="grid grid-cols-6 gap-2">
                   <button
                     type="button"
-                    onClick={() => setSecondaryColor('')}
+                    onClick={() => {
+                      setSecondaryColor('');
+                      setSuccessMessage(null);
+                    }}
                     disabled={isPending}
                     className={`aspect-square flex items-center justify-center border text-[9px] font-mono transition-all ${
                       secondaryColor === '' ? 'ring-2 ring-offset-2 ring-slate-900 border-slate-400' : 'border-slate-200 hover:bg-slate-50'
@@ -400,7 +425,10 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
                       <button
                         key={`secondary-${c.hex}`}
                         type="button"
-                        onClick={() => setSecondaryColor(c.hex)}
+                        onClick={() => {
+                          setSecondaryColor(c.hex);
+                          setSuccessMessage(null);
+                        }}
                         disabled={isPending}
                         className={`aspect-square flex items-center justify-center transition-all ${
                           active ? 'ring-2 ring-offset-2 ring-slate-900' : 'hover:scale-105'
@@ -427,6 +455,7 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
                   value={groupId}
                   onChange={e => {
                     setGroupId(e.target.value);
+                    setSuccessMessage(null);
                     setZoneWarning(false);
                   }}
                   disabled={isPending || groups.length === 0}
@@ -473,6 +502,13 @@ export function TeamEditor({ open, onClose, tournamentId, groups, team, availabl
                 <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 flex items-start gap-2">
                   <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                   <div>{error}</div>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3 flex items-start gap-2">
+                  <Check className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <div>{successMessage}</div>
                 </div>
               )}
             </div>

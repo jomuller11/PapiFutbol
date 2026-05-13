@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft, Target, Square, BarChart2, Trophy, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { logout } from '@/lib/actions/auth';
+import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 
 const CARD_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   yellow: { label: 'Amarilla', color: '#f59e0b', bg: 'bg-yellow-400' },
@@ -17,7 +18,7 @@ export default async function StatsPage() {
 
   const { data: player } = await supabase
     .from('players')
-    .select('id, first_name, last_name, nickname, score, position')
+    .select('id, first_name, last_name, nickname, score, position, avatar_url')
     .eq('profile_id', user.id)
     .maybeSingle();
 
@@ -108,7 +109,6 @@ export default async function StatsPage() {
   const blueCount = cards.filter(c => c.type === 'blue').length;
   const redCount = cards.filter(c => c.type === 'red').length;
 
-  const initials = ((player as any).first_name?.[0] ?? '') + ((player as any).last_name?.[0] ?? '');
   const displayName = (player as any).nickname || (player as any).first_name;
 
   return (
@@ -128,9 +128,13 @@ export default async function StatsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
-          <div className="w-8 h-8 bg-blue-100 text-blue-900 rounded-full flex items-center justify-center text-xs font-semibold">
-            {initials}
-          </div>
+          <PlayerAvatar
+            firstName={(player as any).first_name}
+            lastName={(player as any).last_name}
+            avatarUrl={(player as any).avatar_url}
+            className="w-8 h-8 rounded-full"
+            textClassName="bg-blue-100 text-blue-900 text-xs font-semibold"
+          />
           <form action={logout}>
             <button type="submit" className="p-1.5 text-slate-400 hover:text-slate-900" title="Cerrar sesión">
               <LogOut className="w-4 h-4" />

@@ -1,22 +1,19 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
-import { Target, MapPin, Clock } from 'lucide-react';
+import { Target } from 'lucide-react';
+import { getPublicPlayerById } from '@/lib/queries/public-players';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const adminSupabase = createAdminClient();
-  const { data } = await adminSupabase
-    .from('players')
-    .select('first_name, last_name, nickname')
-    .eq('id', id)
-    .single();
-  if (!data) return { title: 'Jugador — Liga.9' };
-  const p = data as any;
-  const name = p.nickname ? `${p.nickname} (${p.first_name} ${p.last_name})` : `${p.first_name} ${p.last_name}`;
+  const supabase = await createClient();
+  const player = await getPublicPlayerById(supabase, id);
+  if (!player) return { title: 'Jugador — Liga.9' };
+  const name = player.nickname
+    ? `${player.nickname} (${player.first_name} ${player.last_name})`
+    : `${player.first_name} ${player.last_name}`;
   return { title: `${name} — Liga.9` };
 }
 
@@ -29,17 +26,11 @@ const CARD_STYLE: Record<string, { label: string; color: string; bg: string }> =
 export default async function PlayerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const adminSupabase = createAdminClient();
 
-  const { data: player } = await adminSupabase
-    .from('players')
-    .select('id, first_name, last_name, nickname, position, foot, score, avatar_url')
-    .eq('id', id)
-    .single();
-
+  const player = await getPublicPlayerById(supabase, id);
   if (!player) notFound();
 
-  const p = player as any;
+  const p = player;
 
   const { data: tournament } = await supabase
     .from('tournaments')
@@ -56,20 +47,19 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
   if (tournament) {
     const tid = (tournament as any).id as string;
 
-    const { data: memberships } = await adminSupabase
+    const { data: memberships } = await supabase
       .from('team_memberships')
       .select('team:teams!inner(id, name, short_name, color, tournament_id)')
       .eq('player_id', id)
       .limit(10);
 
-    const current = (memberships ?? []).find((m: any) => m.team?.tournament_id === tid);
+    const current = ((memberships as any[]) ?? []).find((m: any) => m.team?.tournament_id === tid);
     if (current) {
       teamId = (current as any).team.id;
       teamName = (current as any).team.name;
       teamColor = (current as any).team.color;
     }
 
-    // Played matches in this tournament (for the team)
     const matchFilter = teamId
       ? supabase
           .from('matches')
@@ -88,7 +78,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
 
     if (matchIds.length > 0) {
       const [goalsRes, cardsRes] = await Promise.all([
-        adminSupabase
+        supabase
           .from('match_goals')
           .select(`
             id, minute, is_own_goal,
@@ -102,7 +92,7 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
           .in('match_id', matchIds)
           .order('minute', { ascending: true, nullsFirst: false }),
 
-        adminSupabase
+        supabase
           .from('match_cards')
           .select(`
             id, type, minute,
@@ -180,7 +170,6 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Goals */}
         {goals.length > 0 && (
           <section className="bg-white border border-slate-200">
             <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
@@ -223,7 +212,6 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
           </section>
         )}
 
-        {/* Cards */}
         {cards.length > 0 && (
           <section className="bg-white border border-slate-200">
             <div className="px-4 py-3 border-b border-slate-100 font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold">

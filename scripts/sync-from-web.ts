@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Importa equipos y nóminas desde papifutbolsanjosemoron.com.ar a Supabase.
+ * Importa equipos, nóminas y estadísticas desde papifutbolsanjosemoron.com.ar a Supabase.
  *
  * Uso:
  *   npx tsx scripts/sync-from-web.ts [--dry-run] [--tournament-id=<uuid>]
@@ -18,8 +18,8 @@ const TOURNAMENT_ID_ARG = process.argv
   .find((a) => a.startsWith('--tournament-id='))
   ?.split('=')[1];
 
-const EQUIPOS_URL =
-  'https://papifutbolsanjosemoron.com.ar/index.php?r=equipos/vistaweb';
+const EQUIPOS_URL = 'https://papifutbolsanjosemoron.com.ar/index.php?r=equipos/vistaweb';
+const HOMEPAGE_URL = 'https://papifutbolsanjosemoron.com.ar/';
 
 // ─── Env ─────────────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ function stripHtml(html: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
-    .replace(/&[a-z][a-z0-9]*;/gi, '');  // elimina entidades restantes como &emsp13;
+    .replace(/&[a-z][a-z0-9]*;/gi, '');
 }
 
 function parseTeamsPage(html: string): TeamData[] {
@@ -71,7 +71,6 @@ function parseTeamsPage(html: string): TeamData[] {
   let current: TeamData | null = null;
 
   for (const line of lines) {
-    // Encabezado de equipo: "01 NOMBREEQUIPO" o "1 NOMBRE"
     const m = line.match(/^(\d{1,2})\s+([A-ZÁÉÍÓÚÜÑ0-9 .'-]{2,50})$/i);
     if (m) {
       const num = parseInt(m[1], 10);
@@ -81,8 +80,6 @@ function parseTeamsPage(html: string): TeamData[] {
         continue;
       }
     }
-
-    // Nombre de jugador: solo letras, espacios y puntuación básica
     if (current && /^[A-ZÁÉÍÓÚÜÑ ,.'()-]+$/i.test(line) && line.length >= 3) {
       current.players.push(line.trim().toUpperCase());
     }
@@ -90,6 +87,44 @@ function parseTeamsPage(html: string): TeamData[] {
 
   if (current) teams.push(current);
   return teams;
+}
+
+/**
+ * Extrae filas de una tabla HTML identificada por su atributo id.
+ * Retorna array de arrays de strings (celdas por fila), omitiendo filas de encabezado.
+ */
+function parseTableSection(html: string, sectionId: string): string[][] {
+  const sectionStart = html.indexOf(`id="${sectionId}"`);
+  if (sectionStart < 0) return [];
+
+  const chunk = html.slice(sectionStart, sectionStart + 30000);
+
+  const bodyStart = chunk.indexOf('<tbody');
+  const bodyEnd = chunk.indexOf('</tbody>');
+  const body =
+    bodyStart >= 0 && bodyEnd >= 0
+      ? chunk.slice(bodyStart, bodyEnd + 8)
+      : (() => {
+          const s = chunk.indexOf('<table');
+          const e = chunk.indexOf('</table>');
+          return s >= 0 && e >= 0 ? chunk.slice(s, e + 8) : '';
+        })();
+
+  if (!body) return [];
+
+  const rows: string[][] = [];
+  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let trMatch;
+  while ((trMatch = trRegex.exec(body)) !== null) {
+    const cols: string[] = [];
+    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let tdMatch;
+    while ((tdMatch = tdRegex.exec(trMatch[1])) !== null) {
+      cols.push(stripHtml(tdMatch[1]).replace(/\s+/g, ' ').trim());
+    }
+    if (cols.length > 1) rows.push(cols);
+  }
+  return rows;
 }
 
 // ─── Short name ───────────────────────────────────────────────────────────────
@@ -104,12 +139,7 @@ function deriveShortName(name: string): string {
     return s.length >= 2 ? s : s.padEnd(2, s[0] ?? 'X');
   }
 
-  // Iniciales de las primeras palabras (máx 4 chars)
-  const initials = words
-    .slice(0, 4)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase();
+  const initials = words.slice(0, 4).map((w) => w[0]).join('').toUpperCase();
   return initials.length >= 2 ? initials.slice(0, 4) : words[0].slice(0, 4).toUpperCase();
 }
 
@@ -123,6 +153,114 @@ const COLORS = [
   '#ea580c', '#ca8a04', '#16a34a', '#059669',
   '#0891b2', '#2563eb', '#1e3a8a', '#7c3aed',
 ];
+
+// ─── Stats Sync ───────────────────────────────────────────────────────────────
+
+async function syncStats(supabase: any, html: string) {
+  console.log('\nSincronizando estadísticas...');
+
+  // Standings — Zona 1 + Zona 2
+  // Columnas esperadas: pos, equipo, pts, pj, pg, pe, pp, gf, gc, fp
+  const allStandings = [
+    ...parseTableSection(html, 'posicionesZONA_1').map((c, i) => ({
+      zone: 'Zona 1',
+      rank: parseInt(c[0]) || i + 1,
+      team_name: c[1] ?? '',
+      pts: parseInt(c[2]) || 0,
+      pj: parseInt(c[3]) || 0,
+      pg: parseInt(c[4]) || 0,
+      pe: parseInt(c[5]) || 0,
+      pp: parseInt(c[6]) || 0,
+      gf: parseInt(c[7]) || 0,
+      gc: parseInt(c[8]) || 0,
+      fp: parseInt(c[9]) || 0,
+    })),
+    ...parseTableSection(html, 'posicionesZONA_2').map((c, i) => ({
+      zone: 'Zona 2',
+      rank: parseInt(c[0]) || i + 1,
+      team_name: c[1] ?? '',
+      pts: parseInt(c[2]) || 0,
+      pj: parseInt(c[3]) || 0,
+      pg: parseInt(c[4]) || 0,
+      pe: parseInt(c[5]) || 0,
+      pp: parseInt(c[6]) || 0,
+      gf: parseInt(c[7]) || 0,
+      gc: parseInt(c[8]) || 0,
+      fp: parseInt(c[9]) || 0,
+    })),
+  ].filter((r) => r.team_name);
+
+  await (supabase as any).from('stats_standings').delete().gt('rank', 0);
+  const { error: e1 } = await (supabase as any).from('stats_standings').insert(allStandings);
+  if (e1) console.error('  ✗ stats_standings:', e1.message);
+  else console.log(`  ✓ stats_standings: ${allStandings.length} equipos`);
+
+  // Scorers — columnas: pos, jugador, equipo, goles
+  const scorers = parseTableSection(html, 'goleadoresESTADISTICAS_GENERALES')
+    .map((c, i) => ({
+      rank: parseInt(c[0]) || i + 1,
+      player_name: c[1] ?? '',
+      team_name: c[2] ?? '',
+      goals: parseInt(c[3]) || 0,
+    }))
+    .filter((r) => r.player_name);
+
+  await (supabase as any).from('stats_scorers').delete().gt('rank', 0);
+  const { error: e2 } = await (supabase as any).from('stats_scorers').insert(scorers);
+  if (e2) console.error('  ✗ stats_scorers:', e2.message);
+  else console.log(`  ✓ stats_scorers: ${scorers.length} goleadores`);
+
+  // Fair play — columnas: pos, equipo, amarilla, azul, roja, puntaje
+  const fairplay = parseTableSection(html, 'fairplayESTADISTICAS_GENERALES')
+    .map((c, i) => ({
+      rank: parseInt(c[0]) || i + 1,
+      team_name: c[1] ?? '',
+      yellow: parseInt(c[2]) || 0,
+      blue: parseInt(c[3]) || 0,
+      red: parseInt(c[4]) || 0,
+      score: parseInt(c[5]) || 0,
+    }))
+    .filter((r) => r.team_name);
+
+  await (supabase as any).from('stats_fairplay').delete().gt('rank', 0);
+  const { error: e3 } = await (supabase as any).from('stats_fairplay').insert(fairplay);
+  if (e3) console.error('  ✗ stats_fairplay:', e3.message);
+  else console.log(`  ✓ stats_fairplay: ${fairplay.length} equipos`);
+
+  // Goalkeepers — columnas: pos, jugador, equipo, goles en contra
+  const goalkeepers = parseTableSection(html, 'vallaESTADISTICAS_GENERALES')
+    .map((c, i) => ({
+      rank: parseInt(c[0]) || i + 1,
+      player_name: c[1] ?? '',
+      team_name: c[2] ?? '',
+      goals_against: parseInt(c[3]) || 0,
+    }))
+    .filter((r) => r.player_name);
+
+  await (supabase as any).from('stats_goalkeepers').delete().gt('rank', 0);
+  const { error: e4 } = await (supabase as any).from('stats_goalkeepers').insert(goalkeepers);
+  if (e4) console.error('  ✗ stats_goalkeepers:', e4.message);
+  else console.log(`  ✓ stats_goalkeepers: ${goalkeepers.length} arqueros`);
+
+  // Sanctions — columnas: pos, jugador, equipo, amarilla, azul, roja, fechas, cumplidas
+  const sanctions = parseTableSection(html, 'sancionesESTADISTICAS_GENERALES')
+    .map((c, i) => ({
+      rank: parseInt(c[0]) || i + 1,
+      player_name: c[1] ?? '',
+      team_name: c[2] ?? '',
+      yellow: parseInt(c[3]) || 0,
+      blue: parseInt(c[4]) || 0,
+      red: parseInt(c[5]) || 0,
+      fechas: parseInt(c[6]) || 0,
+      cumplidas: parseInt(c[7]) || 0,
+    }))
+    .filter((r) => r.player_name);
+
+  await (supabase as any).from('stats_sanctions').delete().gt('rank', 0);
+  const { error: e5 } = await (supabase as any).from('stats_sanctions').insert(sanctions);
+  if (e5) console.error('  ✗ stats_sanctions:', e5.message);
+  else console.log(`  ✓ stats_sanctions: ${sanctions.length} sanciones`);
+}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -173,20 +311,20 @@ async function main() {
     console.log(`Torneo: ${tournamentName}`);
   }
 
-  // ── 2. Fetchear y parsear página ──────────────────────────────────────────
+  // ── 2. Fetchear equipos ────────────────────────────────────────────────────
 
-  console.log(`\nFetcheando ${EQUIPOS_URL} ...`);
-  let html: string;
+  console.log(`\nFetcheando equipos desde ${EQUIPOS_URL} ...`);
+  let equiposHtml: string;
   try {
     const res = await fetch(EQUIPOS_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-    html = await res.text();
+    equiposHtml = await res.text();
   } catch (err: any) {
-    console.error(`❌  Error al fetchear la página: ${err.message}`);
+    console.error(`❌  Error al fetchear equipos: ${err.message}`);
     process.exit(1);
   }
 
-  const teams = parseTeamsPage(html);
+  const teams = parseTeamsPage(equiposHtml);
 
   if (teams.length === 0) {
     console.error(
@@ -195,8 +333,6 @@ async function main() {
     );
     process.exit(1);
   }
-
-  // ── 3. Mostrar resultados ─────────────────────────────────────────────────
 
   console.log(`\n${teams.length} equipos encontrados:\n`);
   let totalPlayers = 0;
@@ -213,7 +349,7 @@ async function main() {
     return;
   }
 
-  // ── 4. Upsert equipos ─────────────────────────────────────────────────────
+  // ── 3. Upsert equipos ─────────────────────────────────────────────────────
 
   console.log('\nImportando equipos...');
   let inserted = 0;
@@ -223,7 +359,6 @@ async function main() {
   const teamIdByName: Record<string, string> = {};
 
   for (const [i, teamData] of teams.entries()) {
-    // ¿Ya existe?
     const { data: existing } = await (supabase as any)
       .from('teams')
       .select('id')
@@ -261,7 +396,7 @@ async function main() {
 
   console.log(`\nEquipos: ${inserted} nuevos, ${skipped} ya existían, ${errors} errores`);
 
-  // ── 5. Upsert roster_players ──────────────────────────────────────────────
+  // ── 4. Upsert roster_players ──────────────────────────────────────────────
 
   console.log('\nImportando jugadores...');
   let playersOk = 0;
@@ -290,6 +425,22 @@ async function main() {
   }
 
   console.log(`Jugadores: ${playersOk} importados, ${playersErr} errores`);
+
+  // ── 5. Sincronizar estadísticas ───────────────────────────────────────────
+
+  console.log(`\nFetcheando estadísticas desde ${HOMEPAGE_URL} ...`);
+  let homepageHtml: string;
+  try {
+    const res = await fetch(HOMEPAGE_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    homepageHtml = await res.text();
+  } catch (err: any) {
+    console.error(`❌  Error al fetchear la página principal: ${err.message}`);
+    process.exit(1);
+  }
+
+  await syncStats(supabase, homepageHtml);
+
   console.log('\n✅  Sincronización completada.');
 }
 

@@ -1,32 +1,41 @@
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
-import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
-import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
-import { getPublicPlayersByIds } from '@/lib/queries/public-players';
 import { ShieldAlert } from 'lucide-react';
 
 export const metadata = {
-  title: 'Sanciones â€” Liga.9',
+  title: 'Sanciones — Liga.9',
   description: 'Ranking de jugadores sancionados del torneo.',
 };
 
-const CARD_POINTS: Record<string, number> = {
-  yellow: 1,
-  blue: 1,
-  red: 3,
-};
+function capName(s: string) {
+  return s
+    .toLowerCase()
+    .split(' ')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function initials(name: string) {
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
 
 export default async function SanctionsPage() {
   const supabase = await createClient();
 
-  const { data: tournament } = await supabase
-    .from('tournaments')
-    .select('id, name, year')
-    .eq('status', 'active')
-    .maybeSingle();
+  const { data: rows } = await supabase
+    .from('stats_sanctions')
+    .select('rank, player_name, team_name, yellow, blue, red, fechas, cumplidas')
+    .order('rank', { ascending: true });
 
-  if (!tournament) {
+  const sanctions = (rows as any[]) ?? [];
+
+  if (sanctions.length === 0) {
     return (
       <div className="bg-slate-50 min-h-screen pb-8">
         <MobileHeader title="Sanciones" backHref="/more" />
@@ -35,147 +44,86 @@ export default async function SanctionsPage() {
     );
   }
 
-  const { data: cards } = await supabase
-    .from('match_cards')
-    .select(`
-      type, player_id, team_id,
-      team:teams!match_cards_team_id_fkey(id, name, color, secondary_color),
-      match:matches!match_cards_match_id_fkey!inner(tournament_id)
-    `)
-    .eq('match.tournament_id', (tournament as any).id);
-
-  const playersById = await getPublicPlayersByIds(
-    supabase,
-    ((cards as any[]) ?? []).map((card) => card.player_id)
-  );
-
-  const sanctions = new Map<string, {
-    player_id: string;
-    player_name: string;
-    first_name: string | null;
-    last_name: string | null;
-    avatar_url: string | null;
-    team_id: string | null;
-    team_name: string;
-    color: string;
-    yellow: number;
-    blue: number;
-    red: number;
-    points: number;
-  }>();
-
-  for (const card of (cards as any[]) ?? []) {
-    const player = card.player_id ? playersById[card.player_id] : null;
-    if (!card.player_id || !player) continue;
-
-    const existing = sanctions.get(card.player_id) ?? {
-      player_id: card.player_id,
-      player_name: player.nickname || `${player.first_name} ${player.last_name}`,
-      first_name: player.first_name ?? null,
-      last_name: player.last_name ?? null,
-      avatar_url: player.avatar_url ?? null,
-      team_id: card.team?.id ?? null,
-      team_name: card.team?.name ?? 'Sin equipo',
-      color: card.team?.color ?? '#94a3b8',
-      yellow: 0,
-      blue: 0,
-      red: 0,
-      points: 0,
-    };
-
-    existing[card.type as 'yellow' | 'blue' | 'red'] += 1;
-    existing.points += CARD_POINTS[card.type] ?? 0;
-    sanctions.set(card.player_id, existing);
-  }
-
-  const rows = Array.from(sanctions.values()).sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    if (b.red !== a.red) return b.red - a.red;
-    if (b.blue !== a.blue) return b.blue - a.blue;
-    if (b.yellow !== a.yellow) return b.yellow - a.yellow;
-    return a.player_name.localeCompare(b.player_name);
-  });
-
   return (
     <div className="bg-slate-50 min-h-screen pb-8">
       <MobileHeader title="Sanciones" backHref="/more" />
       <div className="md:max-w-4xl md:mx-auto">
+
+        {/* Hero */}
         <div className="bg-gradient-to-br from-red-700 via-red-800 to-red-950 text-white p-6 relative overflow-hidden">
           <div className="absolute inset-0 noise opacity-20" />
           <div className="relative text-center">
             <ShieldAlert className="w-10 h-10 mx-auto text-red-200 mb-2 opacity-80" />
             <div className="font-serif text-2xl font-bold">SANCIONES</div>
-            <div className="text-[10px] font-mono text-red-200 mt-1 uppercase tracking-widest">{(tournament as any).name}</div>
           </div>
         </div>
 
         <div className="p-3">
+          {/* Leyenda */}
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <RuleCard color="bg-yellow-400" label="Amarilla" points="1 PTO" />
-            <RuleCard color="bg-blue-500" label="Azul" points="1 PTO" />
-            <RuleCard color="bg-red-500" label="Roja" points="3 PTOS" />
+            <div className="bg-white border border-slate-200 p-2 text-center shadow-sm">
+              <div className="w-4 h-6 bg-yellow-400 mx-auto rounded-sm mb-1.5 shadow-sm" />
+              <div className="text-[10px] font-semibold text-slate-800">Amarilla</div>
+            </div>
+            <div className="bg-white border border-slate-200 p-2 text-center shadow-sm">
+              <div className="w-4 h-6 bg-blue-500 mx-auto rounded-sm mb-1.5 shadow-sm" />
+              <div className="text-[10px] font-semibold text-slate-800">Azul</div>
+            </div>
+            <div className="bg-white border border-slate-200 p-2 text-center shadow-sm">
+              <div className="w-4 h-6 bg-red-500 mx-auto rounded-sm mb-1.5 shadow-sm" />
+              <div className="text-[10px] font-semibold text-slate-800">Roja</div>
+            </div>
           </div>
 
+          {/* Tabla */}
           <div className="bg-white border border-slate-200 shadow-sm overflow-hidden">
-            <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center px-3 py-2 border-b border-slate-100 bg-slate-50 gap-3">
-              <div className="w-5 text-[9px] font-mono text-slate-400 text-center">#</div>
-              <div className="text-[9px] font-mono text-slate-400 uppercase tracking-wider">Jugador</div>
-              <div className="w-6 text-center text-xs">🟨</div>
-              <div className="w-6 text-center text-xs">🟦</div>
-              <div className="w-6 text-center text-xs">🟥</div>
-              <div className="w-10 text-center text-[9px] font-mono text-slate-400 uppercase tracking-widest font-bold">Ptos</div>
-            </div>
-
-            <div className="divide-y divide-slate-50">
-              {rows.map((row, index) => (
-                <Link
-                  key={row.player_id}
-                  href={`/player/${row.player_id}`}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] items-center px-3 py-3 gap-3 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="w-5 text-center font-mono text-xs text-slate-400 font-bold">{index + 1}</div>
-                  <div className="flex min-w-0 items-center gap-2">
-                    <PlayerAvatar
-                      firstName={row.first_name}
-                      lastName={row.last_name}
-                      avatarUrl={row.avatar_url}
-                      className="w-8 h-8 rounded-full"
-                      textClassName="bg-red-50 text-red-900 text-[10px] font-semibold"
-                    />
-                    <div className="min-w-0">
-                      <div className="font-semibold text-xs text-slate-900 truncate">{row.player_name}</div>
-                      <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                        <TeamColorSwatch team={row} className="w-2.5 h-2.5 rounded-full flex-shrink-0" />
-                        <span className="text-[11px] text-slate-500 truncate">{row.team_name}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="w-6 text-center font-mono text-xs text-slate-500">{row.yellow || '—'}</div>
-                  <div className="w-6 text-center font-mono text-xs text-slate-500">{row.blue || '—'}</div>
-                  <div className="w-6 text-center font-mono text-xs text-slate-500">{row.red || '—'}</div>
-                  <div className="w-10 text-center font-bold font-mono text-xs text-red-700">{row.points}</div>
-                </Link>
-              ))}
-
-              {rows.length === 0 && (
-                <div className="px-5 py-10 text-center text-sm text-slate-400">
-                  TodavÃ­a no hay sanciones registradas.
-                </div>
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="text-left px-3 py-2 font-mono text-[9px] text-slate-400 uppercase w-8">#</th>
+                    <th className="text-left py-2 font-mono text-[9px] text-slate-400 uppercase">Jugador</th>
+                    <th className="text-center py-2 font-mono text-[9px] text-slate-400 w-6">🟨</th>
+                    <th className="text-center py-2 font-mono text-[9px] text-slate-400 w-6">🟦</th>
+                    <th className="text-center py-2 font-mono text-[9px] text-slate-400 w-6">🟥</th>
+                    <th className="text-center py-2 pr-3 font-mono text-[9px] text-slate-400 uppercase tracking-wider w-14 hidden sm:table-cell">Fechas</th>
+                    <th className="text-center py-2 pr-3 font-mono text-[9px] text-slate-400 uppercase tracking-wider w-16 hidden sm:table-cell">Cumplidas</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {sanctions.map((row) => (
+                    <tr key={row.rank} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-3 py-3 font-mono text-xs text-slate-400">{row.rank}</td>
+                      <td className="py-3 pr-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <span className="font-mono text-[10px] text-red-900 font-semibold">
+                              {initials(row.player_name)}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-xs text-slate-900 truncate">
+                              {capName(row.player_name)}
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate">
+                              {capName(row.team_name)}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 text-center font-mono text-xs text-slate-500">{row.yellow || '—'}</td>
+                      <td className="py-3 text-center font-mono text-xs text-slate-500">{row.blue || '—'}</td>
+                      <td className="py-3 text-center font-mono text-xs text-red-600 font-semibold">{row.red || '—'}</td>
+                      <td className="py-3 pr-3 text-center font-mono text-xs text-slate-500 hidden sm:table-cell">{row.fechas}</td>
+                      <td className="py-3 pr-3 text-center font-mono text-xs text-emerald-600 hidden sm:table-cell">{row.cumplidas}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function RuleCard({ color, label, points }: { color: string; label: string; points: string }) {
-  return (
-    <div className="bg-white border border-slate-200 p-2 text-center shadow-sm">
-      <div className={`w-4 h-6 ${color} mx-auto rounded-sm mb-1.5 shadow-sm`} />
-      <div className="text-[10px] font-semibold text-slate-800">{label}</div>
-      <div className="text-[9px] text-slate-400 font-mono tracking-wider">{points}</div>
     </div>
   );
 }
@@ -185,7 +133,7 @@ function EmptyState() {
     <div className="text-center py-16 text-slate-500 px-6">
       <ShieldAlert className="w-10 h-10 mx-auto mb-3 text-slate-300" />
       <h1 className="font-serif text-xl font-bold text-slate-900 mb-2">Sanciones</h1>
-      <p className="text-sm font-medium">Las sanciones aparecerÃ¡n con el torneo activo.</p>
+      <p className="text-sm font-medium">Las sanciones aparecerán cuando se sincronicen los datos.</p>
     </div>
   );
 }

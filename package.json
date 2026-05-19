@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "types:db": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.ts"
+    "types:db": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.ts",
+    "sync:web": "npx tsx scripts/sync-from-web.ts",
+    "sync:web:dry": "npx tsx scripts/sync-from-web.ts --dry-run"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -49,6 +51,7 @@
     "postcss": "^8.4.47",
     "supabase": "^1.207.9",
     "tailwindcss": "^3.4.14",
+    "tsx": "^4.22.3",
     "typescript": "^5"
   }
 }

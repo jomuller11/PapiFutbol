@@ -41,7 +41,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
   const shieldShellClass = usesLightHeader ? 'bg-slate-900/10' : 'bg-white/20';
   const shieldClass = usesLightHeader ? 'text-slate-950' : 'text-white';
 
-  const [rosterRes, matchesRes, groupTeamRes] = await Promise.all([
+  const [rosterRes, matchesRes, groupTeamRes, rosterPlayersRes] = await Promise.all([
     supabase
       .from('team_memberships')
       .select('id, jersey_number, is_captain, player_id')
@@ -65,6 +65,12 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
       .select('group:groups(id, name, phase:phases(name))')
       .eq('team_id', id)
       .limit(1),
+
+    supabase
+      .from('roster_players')
+      .select('id, full_name, roster_position')
+      .eq('team_id', id)
+      .order('roster_position', { ascending: true }),
   ]);
 
   const playersById = await getPublicPlayersByIds(
@@ -76,6 +82,8 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
     .filter(r => r.player);
   const matches = (matchesRes.data as any[]) ?? [];
   const groupInfo = (groupTeamRes.data as any[])?.[0]?.group ?? null;
+  const rosterPlayers = (rosterPlayersRes.data as any[]) ?? [];
+  const totalPlayers = roster.length > 0 ? roster.length : rosterPlayers.length;
 
   const played = matches.filter(m => m.status === 'played');
   const upcoming = matches.filter(m => m.status === 'scheduled');
@@ -116,7 +124,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
               {groupInfo ? `${groupInfo.phase?.name ?? 'Fase'} · Zona ${groupInfo.name}` : 'Equipo'}
             </div>
             <div className={`font-serif text-2xl font-bold leading-tight ${headerTextClass}`}>{t.name}</div>
-            <div className={`font-mono text-[10px] mt-1 ${subMetaTextClass}`}>{roster.length} jugadores</div>
+            <div className={`font-mono text-[10px] mt-1 ${subMetaTextClass}`}>{totalPlayers} jugadores</div>
           </div>
         </div>
       </div>
@@ -144,11 +152,9 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
         {/* Plantel */}
         <section className="bg-white border border-slate-200">
           <div className="px-4 py-3 border-b border-slate-100 font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold">
-            Plantel · {roster.length} jugadores
+            Plantel · {totalPlayers} jugadores
           </div>
-          {roster.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-400">Plantel aún no definido.</div>
-          ) : (
+          {roster.length > 0 ? (
             <div className="divide-y divide-slate-100">
               {roster.map((m: any) => {
                 const p = m.player;
@@ -193,6 +199,26 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                 );
               })}
             </div>
+          ) : rosterPlayers.length > 0 ? (
+            <div className="divide-y divide-slate-100">
+              {rosterPlayers.map((rp: any) => (
+                <div key={rp.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-7 text-right font-mono text-xs text-slate-400 flex-shrink-0">
+                    {rp.roster_position}
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                    <span className="font-mono text-[10px] text-slate-400 font-semibold">
+                      {rp.full_name.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
+                    </span>
+                  </div>
+                  <span className="flex-1 text-sm font-medium text-slate-800 capitalize">
+                    {rp.full_name.charAt(0) + rp.full_name.slice(1).toLowerCase()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="px-4 py-8 text-center text-sm text-slate-400">Plantel aún no definido.</div>
           )}
         </section>
 

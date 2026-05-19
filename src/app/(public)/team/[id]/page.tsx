@@ -3,10 +3,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { MobileHeader } from '@/components/public/MobileHeader';
 import { TeamColorSwatch } from '@/components/shared/TeamColorSwatch';
-import { PlayerAvatar } from '@/components/shared/PlayerAvatar';
 import { isLightColor } from '@/lib/constants';
-import { Shield, MapPin, Clock, Target, Star } from 'lucide-react';
-import { getPublicPlayersByIds } from '@/lib/queries/public-players';
+import { Shield, MapPin, Clock } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,12 +12,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { data } = await supabase.from('teams').select('name').eq('id', id).single();
   return { title: data ? `${(data as any).name} — Liga.9` : 'Equipo — Liga.9' };
 }
-
-const POSITION_LABELS: Record<string, string> = {
-  ARQ: 'Arquero', DFC: 'Defensor central', LAT: 'Lateral',
-  MCC: 'Mediocampista', MCO: 'Mediocampista ofensivo',
-  EXT: 'Extremo', DEL: 'Delantero',
-};
 
 export default async function TeamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,12 +33,12 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
   const shieldShellClass = usesLightHeader ? 'bg-slate-900/10' : 'bg-white/20';
   const shieldClass = usesLightHeader ? 'text-slate-950' : 'text-white';
 
-  const [rosterRes, matchesRes, groupTeamRes, rosterPlayersRes] = await Promise.all([
+  const [rosterPlayersRes, matchesRes, groupTeamRes] = await Promise.all([
     supabase
-      .from('team_memberships')
-      .select('id, jersey_number, is_captain, player_id')
+      .from('roster_players')
+      .select('id, full_name, roster_position')
       .eq('team_id', id)
-      .order('jersey_number', { ascending: true, nullsFirst: false }),
+      .order('roster_position', { ascending: true }),
 
     supabase
       .from('matches')
@@ -65,25 +57,11 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
       .select('group:groups(id, name, phase:phases(name))')
       .eq('team_id', id)
       .limit(1),
-
-    supabase
-      .from('roster_players')
-      .select('id, full_name, roster_position')
-      .eq('team_id', id)
-      .order('roster_position', { ascending: true }),
   ]);
 
-  const playersById = await getPublicPlayersByIds(
-    supabase,
-    ((rosterRes.data as any[]) ?? []).map((membership) => membership.player_id)
-  );
-  const roster = ((rosterRes.data as any[]) ?? [])
-    .map((membership) => ({ ...membership, player: playersById[membership.player_id] }))
-    .filter(r => r.player);
+  const rosterPlayers = (rosterPlayersRes.data as any[]) ?? [];
   const matches = (matchesRes.data as any[]) ?? [];
   const groupInfo = (groupTeamRes.data as any[])?.[0]?.group ?? null;
-  const rosterPlayers = (rosterPlayersRes.data as any[]) ?? [];
-  const totalPlayers = roster.length > 0 ? roster.length : rosterPlayers.length;
 
   const played = matches.filter(m => m.status === 'played');
   const upcoming = matches.filter(m => m.status === 'scheduled');
@@ -124,12 +102,14 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
               {groupInfo ? `${groupInfo.phase?.name ?? 'Fase'} · Zona ${groupInfo.name}` : 'Equipo'}
             </div>
             <div className={`font-serif text-2xl font-bold leading-tight ${headerTextClass}`}>{t.name}</div>
-            <div className={`font-mono text-[10px] mt-1 ${subMetaTextClass}`}>{totalPlayers} jugadores</div>
+            {rosterPlayers.length > 0 && (
+              <div className={`font-mono text-[10px] mt-1 ${subMetaTextClass}`}>{rosterPlayers.length} jugadores</div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Stats strip */}
+      {/* Stats strip — solo si hay partidos jugados */}
       {played.length > 0 && (
         <div className="bg-white border-b border-slate-200 grid grid-cols-6 divide-x divide-slate-100">
           {[
@@ -149,76 +129,37 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
       )}
 
       <div className="p-4 space-y-4">
-        {/* Plantel */}
+
+        {/* Plantel — desde roster_players */}
         <section className="bg-white border border-slate-200">
           <div className="px-4 py-3 border-b border-slate-100 font-mono text-[10px] text-slate-600 uppercase tracking-widest font-semibold">
-            Plantel · {totalPlayers} jugadores
+            Plantel · {rosterPlayers.length} jugadores
           </div>
-          {roster.length > 0 ? (
+          {rosterPlayers.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-slate-400">Plantel aún no definido.</div>
+          ) : (
             <div className="divide-y divide-slate-100">
-              {roster.map((m: any) => {
-                const p = m.player;
+              {rosterPlayers.map((rp: any) => {
+                const initials = rp.full_name
+                  .split(' ')
+                  .map((w: string) => w[0])
+                  .slice(0, 2)
+                  .join('');
+                const displayName =
+                  rp.full_name.charAt(0).toUpperCase() + rp.full_name.slice(1).toLowerCase();
                 return (
-                  <Link
-                    key={m.id}
-                    href={`/player/${p.id}`}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="w-7 text-right font-mono text-xs text-slate-400 flex-shrink-0">
-                      {m.jersey_number != null ? `#${m.jersey_number}` : '—'}
+                  <div key={rp.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-6 text-right font-mono text-xs text-slate-400 flex-shrink-0">
+                      {rp.roster_position}
                     </div>
-                    <PlayerAvatar
-                      firstName={p.first_name}
-                      lastName={p.last_name}
-                      avatarUrl={p.avatar_url}
-                      className="w-8 h-8 rounded-full"
-                      textClassName="bg-blue-100 text-blue-800 text-xs font-semibold"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium text-slate-800 truncate">
-                          {p.first_name} {p.last_name}
-                        </span>
-                        {m.is_captain && <Star className="w-3 h-3 text-amber-500 flex-shrink-0" />}
-                      </div>
-                      {p.nickname && (
-                        <div className="font-mono text-[9px] text-slate-400">"{p.nickname}"</div>
-                      )}
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                      <span className="font-mono text-[10px] text-slate-500 font-semibold">{initials}</span>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {p.position && (
-                        <span className="font-mono text-[9px] bg-blue-50 text-blue-800 border border-blue-100 px-1.5 py-0.5 uppercase">
-                          {p.position}
-                        </span>
-                      )}
-                      {p.score != null && (
-                        <span className="font-display text-base font-bold text-blue-900 w-6 text-right">{p.score}</span>
-                      )}
-                    </div>
-                  </Link>
+                    <span className="flex-1 text-sm font-medium text-slate-800">{displayName}</span>
+                  </div>
                 );
               })}
             </div>
-          ) : rosterPlayers.length > 0 ? (
-            <div className="divide-y divide-slate-100">
-              {rosterPlayers.map((rp: any) => (
-                <div key={rp.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-7 text-right font-mono text-xs text-slate-400 flex-shrink-0">
-                    {rp.roster_position}
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                    <span className="font-mono text-[10px] text-slate-400 font-semibold">
-                      {rp.full_name.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}
-                    </span>
-                  </div>
-                  <span className="flex-1 text-sm font-medium text-slate-800 capitalize">
-                    {rp.full_name.charAt(0) + rp.full_name.slice(1).toLowerCase()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="px-4 py-8 text-center text-sm text-slate-400">Plantel aún no definido.</div>
           )}
         </section>
 
@@ -249,6 +190,7 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
             </div>
           </section>
         )}
+
       </div>
     </div>
   );
